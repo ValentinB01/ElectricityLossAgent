@@ -4,7 +4,7 @@
 
 Project for **Smarthack XI 2026**, PPC theme *"24h to Power PPC: AI in energy, from data to action"*.
 
-> **Status:** planning stage, no code yet. This README describes the target system: the commands below and the files they use are created as the plan in [`docs/producers-plan.md`](docs/producers-plan.md) progresses.
+> **Status:** in progress, built one step at a time ([plan](docs/producers-plan.md)). This README describes the target system; today the repo contains data preparation, [`prepare_data.py`](prepare_data.py), and the analysis, [`notebooks/explore_kelmarsh.ipynb`](notebooks/explore_kelmarsh.ipynb). Commands in section 6 arrive with their steps.
 
 - **At producers** (wind turbines and PV parks): we estimate how much each piece of equipment should produce. We detect when it produces below normal and schedule revisions and checks in the windows with the lowest loss: low wind for turbines, little sun for panels.
 - **At consumers** (households): we estimate how much each household should consume. We detect anomalies in the monthly consumption series (possible theft or a faulty meter) and prioritise inspections.
