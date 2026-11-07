@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 540" width="1340" height="540" role="img" aria-labelledby="t d" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+  <title id="t">The agent moves the intervention to the day with the fewest lost MWh</title>
+  <desc id="d">10-minute SCADA feeds a risk score from a normal-behaviour model. A wind forecast feeds lost MWh from a power curve for each day. Both feed a decision that weighs risk times cost, crews per day, the wind limit and the optimal window. The decision leads to a work order on a low-wind day, an immediate intervention when risk is high and time is short, or a drone inspection when the score is uncertain and a human decides.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#c9c9bd"/></marker>
+    <style>
+      .b{fill:#fff;stroke:#c9c9bd;stroke-width:2}
+      .l{stroke:#c9c9bd;stroke-width:2;fill:none;marker-end:url(#a)}
+      .h{font-size:24px;font-weight:600;fill:#111;text-anchor:middle}
+      .s{font-size:20px;fill:#555;text-anchor:middle}
+    </style>
+  </defs>
+  <rect width="1340" height="540" fill="#fff"/>
+  <text x="43" y="60" font-size="28" font-weight="600" fill="#111">The agent moves the intervention to the day with the fewest lost MWh</text>
+
+  <rect class="b" x="43" y="152" width="268" height="85" rx="12"/><text class="h" x="177" y="203">10-minute SCADA</text>
+  <rect class="b" x="368" y="131" width="268" height="127" rx="12"/><text class="h" x="502" y="175">Risk score</text><text class="s" x="502" y="205">normal-behaviour</text><text class="s" x="502" y="233">model</text>
+  <rect class="b" x="43" y="364" width="268" height="85" rx="12"/><text class="h" x="177" y="415">Wind forecast</text>
+  <rect class="b" x="368" y="343" width="268" height="127" rx="12"/><text class="h" x="502" y="387">Lost MWh</text><text class="s" x="502" y="417">power curve</text><text class="s" x="502" y="445">for each day</text>
+
+  <rect class="b" x="693" y="159" width="226" height="283" rx="12"/>
+  <text class="h" x="806" y="219">Decision</text><text class="s" x="806" y="269">risk × cost</text><text class="s" x="806" y="303">crews per day</text><text class="s" x="806" y="337">wind limit</text><text class="s" x="806" y="371">optimal window</text>
+
+  <rect x="982" y="120" width="320" height="99" rx="12" fill="#e3edf8" stroke="#2a7bd8" stroke-width="3"/><text class="h" x="1142" y="163">Work order</text><text class="s" x="1142" y="195">on a low-wind day</text>
+  <rect class="b" x="982" y="251" width="320" height="99" rx="12"/><text class="h" x="1142" y="294">Immediate intervention</text><text class="s" x="1142" y="326">high risk, little time</text>
+  <rect class="b" x="982" y="382" width="320" height="99" rx="12"/><text class="h" x="1142" y="425">Drone inspection</text><text class="s" x="1142" y="457">uncertain: a human decides</text>
+
+  <path class="l" d="M311 194H366"/><path class="l" d="M636 194H691"/>
+  <path class="l" d="M311 406H366"/><path class="l" d="M636 406H691"/>
+  <path class="l" d="M919 169H980"/><path class="l" d="M919 300H980"/><path class="l" d="M919 431H980"/>
+</svg>
