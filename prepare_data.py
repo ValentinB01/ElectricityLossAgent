@@ -29,7 +29,7 @@ STATIC = ("Kelmarsh_WT_static.csv", "af3a038f0f7fddfc1608ad0bfc8cf5ba")
 ARCHIVES = {2019: ("Kelmarsh_SCADA_2019_3085.zip", "14348a1572b722e1be10e53cd145c39a"),
             2020: ("Kelmarsh_SCADA_2020_3086.zip", "e189e02da98f32e74acc72e8559ef0db")}
 LAT, LON = 52.4006, -0.9471
-WEATHER = "wind_speed_100m,wind_gusts_10m,precipitation,relative_humidity_2m,temperature_2m,surface_pressure"
+WEATHER = "wind_speed_100m,wind_speed_10m,wind_gusts_10m,precipitation,relative_humidity_2m,temperature_2m,surface_pressure"
 
 TIME = "# Date and time"
 COLUMNS = {
@@ -120,7 +120,7 @@ def main() -> None:
     turbines.to_parquet(DATA / f"turbines_{a.year}.parquet", compression="zstd")
     events.to_parquet(DATA / f"events_{a.year}.parquet", compression="zstd")
     wx = DATA / f"weather_{a.year}.parquet"
-    if not wx.exists():
+    if not wx.exists() or set(WEATHER.split(",")) - set(pd.read_parquet(wx).columns):  # Fetched again when a later step needs a new variable.
         get_weather(a.year).to_parquet(wx)
     if not a.keep_zip:
         zip_path.unlink()
