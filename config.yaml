@@ -1,0 +1,44 @@
+data:
+  input_path: data.csv
+  output_dir: data/processed
+  chunksize: 1024
+  invalid_policy: nan  # nan or error (non-numeric / infinite / numeric overflow)
+  negative_policy: nan  # nan, error, or clip_zero
+  suspicious_value_threshold: 100000.0  # reporting only; never removes a consumer
+split:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+  stratify: true
+  random_state: 42
+dates:
+  start: '2014-01-01'
+  end: '2016-10-31'
+  frequency: D
+outliers:
+  enabled: true
+  upper_quantile: 0.999
+  method: global_quantile_clip
+cnn:
+  dtype: float32
+  use_observation_mask: true
+  log_transform: true
+  scaling: standard  # standard, robust, or none
+  imputation: placeholder  # placeholder or short_linear
+  max_interpolation_gap: 3
+  missing_placeholder: 0.0
+hybrid:
+  imputation: median
+  scaling: robust  # robust, standard, or none
+  add_missing_indicators: true
+features:
+  sudden_drop_threshold: 0.50
+  sudden_increase_threshold: 0.50
+  insufficient_history_threshold: 180
+  include_quality_features: true
+  create_quality_ablation: false
+filtering:
+  filter_insufficient_history: false
+runtime:
+  random_seed: 42
+  batch_size: 512
