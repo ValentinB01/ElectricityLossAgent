@@ -4,7 +4,7 @@
 
 Project for **Smarthack XI 2026**, PPC theme *"24h to Power PPC: AI in energy, from data to action"*.
 
-> **Status:** in progress, built one step at a time ([plan](docs/producers-plan.md)). This README describes the target system; today the repo contains data preparation, [`prepare_data.py`](prepare_data.py), the analysis, [`notebooks/explore_kelmarsh.ipynb`](notebooks/explore_kelmarsh.ipynb), and the wind expected-production model, [`m1_expected.py`](m1_expected.py). Commands in section 6 arrive with their steps.
+> **Status:** in progress, built one step at a time ([plan](docs/producers-plan.md)). The producers module runs end to end on wind and solar: data ([`prepare_data.py`](prepare_data.py)), expected production ([`m1_expected.py`](m1_expected.py)), underperformance ([`m2_underperf.py`](m2_underperf.py), [`inject_faults.py`](inject_faults.py)), downtime cost from the forecast ([`m4_cost.py`](m4_cost.py)), the maintenance calendar ([`optimizer.py`](optimizer.py), [`tests/`](tests/test_optimizer.py)), the one-year backtest ([`backtest.py`](backtest.py)) and the solar branch ([`pv.py`](pv.py)). This README still describes the target system; the consumers module, LLM agent and dashboard are not built yet, and commands in section 6 arrive with them.
 
 - **At producers** (wind turbines and PV parks): we estimate how much each piece of equipment should produce. We detect when it produces below normal and schedule revisions and checks in the windows with the lowest loss: low wind for turbines, little sun for panels.
 - **At consumers** (households): we estimate how much each household should consume. We detect anomalies in the monthly consumption series (possible theft or a faulty meter) and prioritise inspections.
@@ -104,16 +104,18 @@ Without an LLM API key, the application runs in **deterministic CLI mode**, with
 
 ## 4. Results
 
-> All figures below are generated with `make eval` and saved in `results/`. Fill in the table after running.
+> Producers rows: the 2020 test year, run once with every setting frozen (`--eval --final` on each model, `python backtest.py --final`). Results are written to `results/`, which stays local. Faults are synthetic, injected into real SCADA.
 
 | Component | Metric | Model | Baseline |
 |---|---|---|---|
-| M1 wind (Kelmarsh, test year) | MAE (% of rated) / 10–90% interval coverage | _TBD_ | _TBD_ |
-| M1 PV (Kaggle, last 7 days) | MAE (% of rated) | _TBD_ | _TBD_ |
-| M2 wind (injected faults) | detection % / delay (days) / false alarms per turbine-month / cause F1 | _TBD_ | _TBD_ |
+| M1 wind (Kelmarsh, 2020) | MAE (% of rated) / 10–90% interval coverage | 1.88% / 79.1% | binned power curve: 2.24% / – |
+| M1-W wind, weather only (Kelmarsh, 2020) | MAE (% of rated) / 10–90% interval coverage | 8.55% / 76.4% | binned curve on hub-height wind: 8.73% / – |
+| M1 PV (Kaggle, last 7 days) | MAE (% of rated) / 10–90% interval coverage | 2.60% / 68.6% | physical formula: 3.82% / – |
+| M2 PV (123 faults injected into the last 7 days) | detection % / false alarms per inverter-month / cause F1 | 74.8% / 0.79 / 0.64 | 72 h index < 0.95: 82.9% / 3.01 / – |
+| M2 wind (342 faults injected into 2020) | detection % / delay (days) / false alarms per turbine-month / cause F1 | 62.9% / 3.4 / 0.024 / 0.80 | 72 h index < 0.95: 63.2% / 4.9 / 0.735 / – |
 | M3 (CARE to Compare, farm A) | CARE score | _TBD_ | _TBD_ |
 | C2 consumers (monthly SGCC, test customers) | PR-AUC / precision in top K / kWh recovered in top K | _TBD_ | _TBD_ |
-| **Maintenance backtest (one year)** | total MWh lost | **agent:** _TBD_ | **repair immediately:** _TBD_ · **at revision:** _TBD_ |
+| **Maintenance backtest (Kelmarsh 2020, 3 fault sets)** | total MWh lost, perfect / noisy forecast | **agent:** 192 / 190 | **repair immediately:** 249 / 234 · **at revision:** 865 / 849 |
 
 Charts (power curves, confusion matrix, backtest) are in `results/figures/`.
 
