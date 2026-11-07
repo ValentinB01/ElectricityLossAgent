@@ -2,6 +2,7 @@
 
     python m4_cost.py --train            # M1-W: expected power from weather alone, trained on Jan-Oct 2019 (about a minute)
     python m4_cost.py --eval             # M1-W against its baseline on Nov-Dec 2019
+    python m4_cost.py --eval --final     # The 2020 test year. Once only, after everything is frozen.
     python m4_cost.py --site kelmarsh    # Cost map from today's Open-Meteo forecast (or --site fantanele)
 
 A stopped hour loses that hour's production, so the cost of a stop is the expected production on the
@@ -14,6 +15,7 @@ Weather data by Open-Meteo.com (CC BY 4.0).
 """
 import argparse
 import datetime as dt
+import functools
 import json
 import urllib.parse
 import urllib.request
@@ -42,6 +44,8 @@ SITES = {
     # PPC, 240 GE 2.5xl turbines. The demo shows six, the number replayed from Kelmarsh (CLAUDE.md 1.2).
     "fantanele": {"lat": 44.59028, "lon": 28.56528, "tz": "Europe/Bucharest", "rated_kw": 2500.0, "turbines": 6, "prefix": "FAN-T",
                   "hub_m": 100.0},  # Assumption: a common GE 2.5xl tower. Real value: PPC asset register.
+    # PPC Lumina PV park, 63 MW. The demo shows six inverter blocks the size of a Kaggle inverter, so replayed findings fit.
+    "calugareni": {"lat": 44.0951, "lon": 25.9761, "tz": "Europe/Bucharest", "type": "pv", "rated_kw": 1400.0, "turbines": 6, "prefix": "CAL-INV", "hub_m": None},
 }
 
 
@@ -116,22 +120,31 @@ def train() -> dict:
     for name, q in m1.QUANTILES.items():
         b = m1.fit(X[tr], y[tr], X[va], y[va], q)
         b.save_model(str(MODELS / f"m1w_wind_{name}.txt"), num_iteration=b.best_iteration)
+        _boosters.cache_clear()
         meta["quantiles"][name] = int(b.best_iteration)
     (MODELS / "m1w_wind_baseline.json").write_text(json.dumps(m1.binned_curve(X.v_hub[tr], y[tr])))
     (MODELS / "m1w_wind_meta.json").write_text(json.dumps(meta, indent=1))
     return meta
 
 
+@functools.lru_cache(maxsize=1)
+def _boosters() -> dict:
+    return {n: lgb.Booster(model_file=str(MODELS / f"m1w_wind_{n}.txt")) for n in m1.QUANTILES}
+
+
 def predict_frac(X: pd.DataFrame) -> np.ndarray:
     """Power as a share of rated, columns p10, p50, p90."""
-    q = np.column_stack([lgb.Booster(model_file=str(MODELS / f"m1w_wind_{n}.txt")).predict(X[FEATURES].to_numpy(float)) for n in m1.QUANTILES])
+    b = _boosters()
+    q = np.column_stack([b[n].predict(X[FEATURES].to_numpy(float)) for n in m1.QUANTILES])
     q.sort(axis=1)
     return q
 
 
-def evaluate() -> dict:
-    t, X = hourly_table()
-    va = ((t.hour >= m1.TRAIN_END) & (t.hour < m1.VAL_END)).to_numpy()
+def evaluate(final: bool = False) -> dict:
+    """Validation (Nov-Dec 2019) or, with final, the 2020 test year: run once, after everything is frozen."""
+    t, X = hourly_table(2020 if final else 2019)
+    period_name = "test_2020" if final else "val_2019_nov_dec"
+    va = np.ones(len(t), bool) if final else ((t.hour >= m1.TRAIN_END) & (t.hour < m1.VAL_END)).to_numpy()
     t, X = t[va].reset_index(drop=True), X[va].reset_index(drop=True)
     q = predict_frac(X) * t.rated_kw.to_numpy(float)[:, None]
     curve = json.loads((MODELS / "m1w_wind_baseline.json").read_text())
@@ -144,24 +157,24 @@ def evaluate() -> dict:
     # What the optimizer adds up: energy over a working day. Hourly errors partly cancel.
     day = d.groupby(["turbine", "day"]).agg(real=("power_kw", "sum"), model=("exp_p50_kw", "sum"), base=("base_kw", "sum"), hours=("power_kw", "size"))
     day = day[day.hours >= 20]
-    res = {"period": "val_2019_nov_dec", "hours": len(d), "note": "Hourly power from reanalysis weather (Open-Meteo archive). A forecast adds its own error on top.",
+    res = {"period": period_name, "hours": len(d), "note": "Hourly power from reanalysis weather (Open-Meteo archive). A forecast adds its own error on top.",
            "model": m1.score(d.power_kw, d.exp_p50_kw, d.rated_kw), "baseline_binned_curve_on_hub_wind": m1.score(d.power_kw, d.base_kw, d.rated_kw),
            "coverage_10_90": round(float(covered.mean()), 3), "by_wind": by_wind,
            "daily_energy_mae_mwh": {"model": round(float((day.model - day.real).abs().mean() / 1000), 2), "baseline": round(float((day.base - day.real).abs().mean() / 1000), 2),
                                     "mean_daily_energy_mwh": round(float(day.real.mean() / 1000), 2)}}
     res["model_beats_baseline"] = res["model"]["mae_kw"] < res["baseline_binned_curve_on_hub_wind"]["mae_kw"]
     RESULTS.mkdir(exist_ok=True)
-    (RESULTS / "m1w_wind_val_2019_nov_dec.json").write_text(json.dumps(res, indent=1))
-    m1.plot_expected(d, res, "m1w_wind_val_2019_nov_dec", model="M1-W", xlabel="Hub-height wind from weather data (m/s)")
+    (RESULTS / f"m1w_wind_{period_name}.json").write_text(json.dumps(res, indent=1))
+    m1.plot_expected(d, res, f"m1w_wind_{period_name}", model="M1-W", xlabel="Hub-height wind from weather data (m/s)")
     return res
 
 
 # ---------- Cost map ----------
-def get_forecast(site: str) -> tuple[pd.DataFrame, dict]:
+def get_forecast(site: str, variables: str = FORECAST_VARS) -> tuple[pd.DataFrame, dict]:
     """Today's hourly forecast. If Open-Meteo cannot be reached, the last saved one is used and marked stale (CLAUDE.md section 12)."""
     s, path = SITES[site], FORECASTS / f"{site}.parquet"
     try:
-        query = urllib.parse.urlencode({"latitude": s["lat"], "longitude": s["lon"], "hourly": FORECAST_VARS, "forecast_days": HORIZON_DAYS + 1, "wind_speed_unit": "ms", "timezone": "UTC"})
+        query = urllib.parse.urlencode({"latitude": s["lat"], "longitude": s["lon"], "hourly": variables, "forecast_days": HORIZON_DAYS + 1, "wind_speed_unit": "ms", "timezone": "UTC"})
         with urllib.request.urlopen(f"https://api.open-meteo.com/v1/forecast?{query}", timeout=60) as r:
             w = pd.DataFrame(json.load(r)["hourly"])
         w["ts_utc"] = pd.to_datetime(w.pop("time"), utc=True)
@@ -272,12 +285,13 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--train", action="store_true")
     ap.add_argument("--eval", action="store_true")
-    ap.add_argument("--site", choices=sorted(SITES))
+    ap.add_argument("--final", action="store_true", help="With --eval: score the 2020 test year. Once only.")
+    ap.add_argument("--site", choices=sorted(k for k, v in SITES.items() if v.get("type", "wind") == "wind"), help="Wind sites; solar costs come from pv.py")
     a = ap.parse_args()
     if a.train:
         print(json.dumps(train(), indent=1))
     if a.eval:
-        r = evaluate()
+        r = evaluate(a.final)
         print(json.dumps({k: r[k] for k in ("hours", "model", "baseline_binned_curve_on_hub_wind", "coverage_10_90", "daily_energy_mae_mwh", "model_beats_baseline")}, indent=1))
     if a.site:
         r = run_site(a.site)
