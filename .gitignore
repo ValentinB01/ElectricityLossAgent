@@ -1,0 +1,15 @@
+# Data and models are recreated by scripts (CLAUDE.md rule 2)
+data/
+models/
+# Test-run outputs and packaged artifacts
+.smoke/
+dist/
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+# Credentials
+kaggle.json
+.env
