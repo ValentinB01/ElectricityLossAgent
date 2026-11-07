@@ -1,6 +1,8 @@
 # Data and models are recreated by scripts (CLAUDE.md rule 2)
 data/
 models/
+# Results stay local: the scripts regenerate them
+results/
 # Test-run outputs and packaged artifacts
 .smoke/
 dist/
