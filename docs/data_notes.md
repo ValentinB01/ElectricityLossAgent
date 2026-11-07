@@ -30,6 +30,17 @@ What inspection found (CLAUDE.md rule 1). "Verified" means read from the real fi
 - **Archive grid point:** the API returns 52.408 N, 1.002 W, about 4 km from the farm. The values are modelled, so they can't see an individual turbine.
 - **Time alignment:** both sources are in UTC. Weather values are spot readings at the hour, while hourly turbine means cover the hour after it, so averaging the readings at each end of the hour is the closest match.
 
-## Kaggle Solar Power Generation Data (unverified: no token during development)
+## Kaggle Solar Power Generation Data (verified 2026-11-08)
 
-The guide's column hints are validated at read time. `make inspect` reports irradiance range, DC/AC ratio, thin days, and whether the irradiance peak fits the assumed time zone. Plant coordinates and time zone are assumptions in `config/sites.yaml`. They affect only solar-angle features, and rain resets are seeded since there is no location to fetch rain for.
+Archive MD5 `132b49faba3e4a67627f7e19c841a308`, four CSVs. Two plants (4135001, 4136001), 22 inverters each, 15-minute rows from 2020-05-15 00:00 to 2020-06-17 23:45 (34 days), one weather sensor per plant.
+
+- **Dates:** `Plant_1_Generation_Data.csv` alone is day-first (`15-05-2020 00:00`); the other three are ISO (`2020-05-15 00:00:00`). Times are local: irradiation starts about 06:00-06:15 and ends 18:15-18:30, consistent with India Standard Time. No location is given.
+- **Power:** `AC_POWER` is kW: integrated over a day it equals `DAILY_YIELD` (ratio 1.000 and 0.999). `DC_POWER` in Plant 1 is 10.2 times AC, a unit error; Plant 2's DC/AC is 1.02. We use AC only.
+- **Size:** highest AC per inverter 1,265-1,411 kW (Plant 1) and 1,173-1,385 kW (Plant 2). Rated power is estimated as each plant's highest AC output.
+- **Irradiation** is kW/m2 (maximum 1.22 and 1.10), converted to W/m2. Whether it is horizontal or in the module plane is not stated.
+- **Temperatures:** module 18-67 °C, ambient 20-39 °C.
+- **Gaps:** Plant 1 is short on 20, 21 and 29 May (and its weather sensor on 16, 20, 21, 29 May); Plant 2 lacks 4 of its 22 inverters from 20 to 29 May.
+- **Real faults:** in daylight, 17% of Plant 2's rows have zero AC; five inverters are at zero 23-30% of daytime. Some Plant 2 inverters produce up to 22% less per unit of irradiation than the plant median (Plant 1: within 9%). `TOTAL_YIELD` is unreliable (Plant 2 starts at 0; one counter reads 1.2 billion kWh) and is not used.
+- **What we keep** (`pv_inverters.parquet`): ts, plant, inverter, ac_kw, irr_wm2, t_mod_c, t_amb_c, rated_kw, and `healthy` = weather present and not zero output above 50 W/m2.
+- **Limits:** 34 days of one season, no location, no rain data: soiling resets by rain are seeded, which the README must state.
+

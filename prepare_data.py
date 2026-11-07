@@ -2,13 +2,17 @@
 
     python prepare_data.py              # 2019: exploration and training
     python prepare_data.py --year 2020  # The test year. Only once the models are final.
+    python prepare_data.py --pv         # Kaggle solar data (needs a Kaggle token in ~/.kaggle/access_token)
 
 Writes to data/kelmarsh/, then deletes the 300-500 MB zip, since it can be downloaded again:
     turbines_<year>.parquet   All 10-minute rows, only the columns below, plus a `healthy` flag
     events_<year>.parquet     Every status event
     weather_<year>.parquet    Hourly weather for the site
     Kelmarsh_WT_static.csv    Rating, hub height and location per turbine
+With --pv, writes data/pv/pv_inverters.parquet: every 15-minute inverter row of both plants, joined to
+the plant's weather sensor, with a `healthy` flag (see docs/data_notes.md for what inspection found).
 Weather data by Open-Meteo.com. Kelmarsh data by Cubico Sustainable Investments, CC-BY-4.0.
+Solar Power Generation Data by Ani Kannal on Kaggle.
 """
 import argparse
 import hashlib
@@ -44,6 +48,11 @@ COLUMNS = {
     "Lost Production to Downtime (kWh)": "lost_downtime_kwh", "Lost Production to Curtailment (Total) (kWh)": "lost_curtail_kwh",
     "Lost Production to Performance (kWh)": "lost_perf_kwh", "Potential power default PC (kW)": "vendor_potential_kw",
 }
+PV_DATA = DATA.parent / "pv"
+PV_ZIP = ("solar-power-generation-data.zip", "132b49faba3e4a67627f7e19c841a308")
+PV_URL = "https://www.kaggle.com/api/v1/datasets/download/anikannal/solar-power-generation-data"
+PV_GEN_FORMAT = {1: "%d-%m-%Y %H:%M", 2: "%Y-%m-%d %H:%M:%S"}  # Plant 1's generation file alone uses day-first dates.
+PV_MIN_IRR_WM2 = 50  # Daylight, for the outage rule below and for M1 (CLAUDE.md 9.1).
 ABNORMAL_IEC = {"Forced outage", "Scheduled Maintenance", "Technical Standby", "Out of Electrical Specification"}
 
 
@@ -104,11 +113,49 @@ def get_weather(year: int) -> pd.DataFrame:
     return w
 
 
+def prepare_pv() -> None:
+    """Solar data. AC power only: Plant 1's DC column is about 10 times its AC, a unit error (Plant 2's ratio is 1.02),
+    while AC integrates to the reported daily yield in both plants. Irradiation arrives in kW/m2. Times are local (India)."""
+    import os
+    PV_DATA.mkdir(parents=True, exist_ok=True)
+    dest = PV_DATA / PV_ZIP[0]
+    if not dest.exists():
+        token_file = Path.home() / ".kaggle" / "access_token"
+        token = os.environ.get("KAGGLE_API_TOKEN") or (token_file.read_text().strip() if token_file.exists() else None)
+        if not token:
+            raise SystemExit("Needs a Kaggle token: Kaggle > Settings > API, saved in ~/.kaggle/access_token or KAGGLE_API_TOKEN.")
+        print("downloading the Kaggle solar data...", flush=True)
+        with urllib.request.urlopen(urllib.request.Request(PV_URL, headers={"Authorization": f"Bearer {token}"}), timeout=120) as r:
+            dest.write_bytes(r.read())
+    if hashlib.md5(dest.read_bytes()).hexdigest() != PV_ZIP[1]:
+        dest.unlink()
+        raise SystemExit(f"{PV_ZIP[0]}: checksum mismatch, file deleted. Run again.")
+    parts = []
+    with zipfile.ZipFile(dest) as z:
+        for plant, fmt in PV_GEN_FORMAT.items():
+            g = pd.read_csv(z.open(f"Plant_{plant}_Generation_Data.csv"))
+            w = pd.read_csv(z.open(f"Plant_{plant}_Weather_Sensor_Data.csv"))
+            g = pd.DataFrame({"ts": pd.to_datetime(g.DATE_TIME, format=fmt), "plant": plant, "inverter": g.SOURCE_KEY, "ac_kw": g.AC_POWER.astype("float32")})
+            w = pd.DataFrame({"ts": pd.to_datetime(w.DATE_TIME, format="%Y-%m-%d %H:%M:%S"), "irr_wm2": (w.IRRADIATION * 1000).astype("float32"),
+                              "t_mod_c": w.MODULE_TEMPERATURE.astype("float32"), "t_amb_c": w.AMBIENT_TEMPERATURE.astype("float32")})
+            g = g.merge(w, on="ts", how="left")
+            g["rated_kw"] = float(g.ac_kw.max())  # Estimate: the plant's highest AC output. Real value: the inverter datasheet.
+            parts.append(g)
+    d = pd.concat(parts, ignore_index=True).sort_values(["plant", "inverter", "ts"]).reset_index(drop=True)
+    # Not healthy: no weather reading, or zero output in daylight (an outage, 17% of Plant 2's daytime rows).
+    d["healthy"] = d[["ac_kw", "irr_wm2", "t_mod_c"]].notna().all(axis=1) & ~((d.irr_wm2 > PV_MIN_IRR_WM2) & (d.ac_kw <= 0))
+    d.to_parquet(PV_DATA / "pv_inverters.parquet", compression="zstd")
+    print(f"pv_inverters.parquet: {len(d):,} rows, {d.inverter.nunique()} inverters in 2 plants, {d.ts.min()} to {d.ts.max()}, {d.healthy.mean():.1%} healthy")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--year", type=int, default=2019, choices=sorted(ARCHIVES))
     ap.add_argument("--keep-zip", action="store_true", help="Do not delete the downloaded archive.")
+    ap.add_argument("--pv", action="store_true", help="Prepare the Kaggle solar data instead.")
     a = ap.parse_args()
+    if a.pv:
+        return prepare_pv()
     DATA.mkdir(parents=True, exist_ok=True)
     download(*STATIC)
     zip_path = download(*ARCHIVES[a.year])
