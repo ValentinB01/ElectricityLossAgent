@@ -2,6 +2,7 @@
 
     python m2_underperf.py --train   # Alarm threshold and cause classifier, from Jan-Oct 2019 (about 10 minutes)
     python m2_underperf.py --eval    # Score on faults injected into Nov-Dec 2019, against the fixed-threshold baseline
+    python m2_underperf.py --eval --final  # The 2020 test year. Once only, after everything is frozen.
 
 Three pieces (CLAUDE.md 9.3). The 72 h performance index says how much is lost. A two-sided
 CUSUM says the drop is persistent, not a bad hour. A classifier on the shape of the deviation
@@ -41,6 +42,7 @@ CLASSIFIER = {"objective": "multiclass", "num_leaves": 15, "learning_rate": 0.05
 CLASSIFIER_TREES = 300
 CONF_MIN = 0.55                     # Below this, inspect before sending a repair crew. Assumption, used by the optimizer.
 NO_LOSS = {"anemometer_bias", "none"}  # A wrong wind reading loses no energy: it needs a check, not a repair.
+LOSS_ONLY = {"pitch_fault", "yaw_misalignment", "icing"}  # Faults that can only lower output.
 
 
 # ---------- Expected values that never saw the row ----------
@@ -278,12 +280,36 @@ def assess(series: Series, hr: dict, turbine: str, t: pd.Timestamp, side: str, b
     if "icing" in meta["classes"] and not faults.icing_conditions(rows).any():
         proba[meta["classes"].index("icing")] = 0.0  # No cold, humid hour in the week: icing is physically impossible.
         proba = proba / proba.sum()
+    if side == "high":
+        for c in LOSS_ONLY & set(meta["classes"]):
+            proba[meta["classes"].index(c)] = 0.0  # A turbine producing more than expected cannot have a fault that only loses power.
+        proba = proba / proba.sum()
     best = int(np.argmax(proba))
     contrib = booster.predict(X, pred_contrib=True).reshape(len(meta["classes"]), len(meta["features"]) + 1)[best, :-1]
     reasons = [{"feature": meta["features"][j], "value": None if np.isnan(X[0, j]) else round(float(X[0, j]), 3), "contribution": round(float(contrib[j]), 3)} for j in np.argsort(-np.abs(contrib))[:3]]
     cause = meta["classes"][best]
     return {**out, "loss_mwh_per_day": 0.0 if cause in NO_LOSS else round(loss, 3), "cause": cause, "cause_proba": round(float(proba[best]), 3),
             "confidence": round(float(proba[best]) * min(1.0, coverage / 0.25), 3), "reasons": reasons}
+
+
+def detect_as_of(pred: pd.DataFrame, as_of: pd.Timestamp, active_days: int = 14) -> list[dict]:
+    """Open findings at a moment, from data before it only: one per turbine whose latest alarm is recent and survives the filter.
+
+    pred: rows with M1's expected values, from some weeks before as_of (the alarm detector starts at the first row).
+    """
+    booster, meta = _load()
+    hist = pred[pred.ts < as_of]
+    hr, series = hourly(hist), Series(hist)
+    th = meta["thresholds"]
+    out = []
+    for turbine, g in scan(hr, th["sigma"], th["h"]).groupby("turbine"):
+        last = g.sort_values("ts").iloc[-1]
+        if last.ts < as_of - pd.Timedelta(days=active_days):
+            continue
+        a = assess(series, hr, turbine, as_of, last.side, booster, meta)
+        if not dismissed(a):
+            out.append({**a, "alarm_ts": str(last.ts)})
+    return sorted(out, key=lambda a: -a["loss_mwh_per_day"])
 
 
 # ---------- Train and evaluate ----------
@@ -364,30 +390,33 @@ def dismissed(a: dict) -> bool:
     return a["cause"] == "none" and a["confidence"] >= CONF_MIN
 
 
-def evaluate() -> dict:
+def evaluate(final: bool = False) -> dict:
+    """Validation (Nov-Dec 2019) or, with final, the 2020 test year: run once, after everything is frozen."""
+    lo, hi, period_name = (VAL_END, pd.Timestamp("2021-01-01"), "test_2020") if final else (VAL_START, VAL_END, "val_2019_nov_dec")
+    n_faults = max(EVAL_FAULTS, round(EVAL_FAULTS * (hi - lo).days / (VAL_END - VAL_START).days))  # Same density of faults as on validation.
     booster, meta = _load()
     th = meta["thresholds"]
     boosters1, meta1 = m1._models()
-    d = m1.load()
+    d = m1.load((2019, 2020) if final else (2019,))
     # Five weeks of lead-in so the first alarms in November have their feature window and month-before comparison.
-    period = _sorted(d[(d.ts >= VAL_START - pd.Timedelta(days=37)) & (d.ts < VAL_END)])
+    period = _sorted(d[(d.ts >= lo - pd.Timedelta(days=37)) & (d.ts < hi)])
     clean = m1.predict_expected(period, boosters1, meta1)
     clean_hr = hourly(clean)
-    real_alarms = scan(clean_hr, th["sigma"], th["h"], VAL_START)
-    real = [{**a, "dismissed_by_filter": dismissed(a)} for a in _assess_alarms(real_alarms, Series(clean), clean_hr, None, booster, meta, VAL_END)]
-    turbine_months = (VAL_END - VAL_START).days / 30.44 * clean_hr["z"].shape[1] * EVAL_PASSES
+    real_alarms = scan(clean_hr, th["sigma"], th["h"], lo)
+    real = [{**a, "dismissed_by_filter": dismissed(a)} for a in _assess_alarms(real_alarms, Series(clean), clean_hr, None, booster, meta, hi)]
+    turbine_months = (hi - lo).days / 30.44 * clean_hr["z"].shape[1] * EVAL_PASSES
     systems = ("model", "model_without_filter", "baseline")
     rows, false = {s: [] for s in systems}, {s: 0 for s in systems}
     y_true, y_pred, loss_err, loss_true, example = [], [], [], [], None
     for k in range(EVAL_PASSES):
         rng = np.random.default_rng([SEED, 2, k])
-        faulted, labels = faults.apply(period, faults.sample(period, EVAL_FAULTS, VAL_START, VAL_END, rng))
+        faulted, labels = faults.apply(period, faults.sample(period, n_faults, lo, hi, rng))
         pred = m1.predict_expected(faulted, boosters1, meta1)
         hr, series = hourly(pred), Series(pred)
-        raw = scan(hr, th["sigma"], th["h"], VAL_START)
-        assessed = _assess_alarms(raw, series, hr, labels, booster, meta, VAL_END)
+        raw = scan(hr, th["sigma"], th["h"], lo)
+        assessed = _assess_alarms(raw, series, hr, labels, booster, meta, hi)
         kept = raw[[not dismissed(a) for a in assessed]]
-        for name, alarms in (("model", kept), ("model_without_filter", raw), ("baseline", baseline_alarms(hr, VAL_START))):
+        for name, alarms in (("model", kept), ("model_without_filter", raw), ("baseline", baseline_alarms(hr, lo))):
             hits, n_false = _match(alarms, labels)
             false[name] += n_false
             for f in labels[labels.detectable].itertuples():
@@ -404,7 +433,7 @@ def evaluate() -> dict:
                 if example is None and f.cause == "pitch_fault":
                     example = {"pred": pred, "fault": f, "alarm": hit.ts, "assessment": out}
     labels_seen = sorted(set(y_true) | set(y_pred))
-    res = {"period": "val_2019_nov_dec", "note": "Faults are synthetic, injected into real data. Real faults nobody labelled count as false alarms. No icing: Nov-Dec 2019 had no frost.",
+    res = {"period": period_name, "note": "Faults are synthetic, injected into real data. Real faults nobody labelled count as false alarms. " + ("" if final else "No icing: Nov-Dec 2019 had no frost."),
            "cusum_threshold": th["h"], "false_alarm_target_per_turbine_month": FALSE_ALARMS_PER_TURBINE_MONTH, "fault_sets": EVAL_PASSES,
            "model": _summary(rows["model"], false["model"], turbine_months), "model_without_filter": _summary(rows["model_without_filter"], false["model_without_filter"], turbine_months),
            "baseline_pi_below_0.95": _summary(rows["baseline"], false["baseline"], turbine_months),
@@ -415,12 +444,12 @@ def evaluate() -> dict:
            "real_data_alarms_no_injection": real, "example": None if example is None else example["assessment"]}
     res["detects_more_than_baseline"] = res["model"]["detection_rate"] > res["baseline_pi_below_0.95"]["detection_rate"]
     RESULTS.mkdir(exist_ok=True)
-    (RESULTS / "m2_wind_val_2019_nov_dec.json").write_text(json.dumps(res, indent=1, default=str))
-    _plot(res, example)
+    (RESULTS / f"m2_wind_{period_name}.json").write_text(json.dumps(res, indent=1, default=str))
+    _plot(res, example, period_name, lo)
     return res
 
 
-def _plot(res: dict, example) -> None:
+def _plot(res: dict, example, period_name: str, lo: pd.Timestamp) -> None:
     import matplotlib.dates as mdates
     plt = m1.chart_style()
     C = m1.COLORS
@@ -450,7 +479,7 @@ def _plot(res: dict, example) -> None:
         p, f, a = example["pred"], example["fault"], example["assessment"]
         u = usable(p)
         g = pd.DataFrame({"d": p.ts.dt.floor("D"), "t": p.turbine, "real": np.where(u, p.power_kw, 0.0), "exp": np.where(u, p.exp_p50_kw, 0.0)})
-        g = g[g.d >= VAL_START]
+        g = g[g.d >= lo]
         ratio = lambda x: (x.real / x.exp * 100).where(x.exp * STEP_H / 1000 >= 2)  # Calm days (under 2 MWh expected) say little.
         mine, rest = g[g.t == f.turbine].groupby("d")[["real", "exp"]].sum(), g[g.t != f.turbine].groupby("d")[["real", "exp"]].sum() / 5
         ax.axvspan(f.start, f.end, color=C["orange"], alpha=0.14, linewidth=0, label=f"Injected pitch fault: capped at {f.severity['k']:.0%} of rated")
@@ -465,7 +494,7 @@ def _plot(res: dict, example) -> None:
         lo, hi = ax.get_ylim(); ax.set_ylim(lo, hi + (hi - lo) * 0.25)
     fig.tight_layout()
     (RESULTS / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(RESULTS / "figures" / "m2_wind_val_2019_nov_dec.png", dpi=150, facecolor=C["surface"])
+    fig.savefig(RESULTS / "figures" / f"m2_wind_{period_name}.png", dpi=150, facecolor=C["surface"])
     plt.close(fig)
 
 
@@ -473,10 +502,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--train", action="store_true")
     ap.add_argument("--eval", action="store_true")
+    ap.add_argument("--final", action="store_true", help="With --eval: score the 2020 test year. Once only.")
     a = ap.parse_args()
     if a.train:
         m = train()
         print(json.dumps({k: m[k] for k in ("classes", "windows", "class_counts")} | {"cusum_h": m["thresholds"]["h"]}, indent=1))
     if a.eval:
-        r = evaluate()
+        r = evaluate(a.final)
         print(json.dumps({k: r[k] for k in ("model", "model_without_filter", "baseline_pi_below_0.95", "detects_more_than_baseline", "cause_macro_f1", "cause_accuracy", "loss_mae_mwh_per_day", "mean_true_loss_mwh_per_day")}, indent=1))
