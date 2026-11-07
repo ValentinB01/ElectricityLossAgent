@@ -46,7 +46,7 @@ def load(years=(2019,)) -> pd.DataFrame:
             raise SystemExit(f"{p} is missing. Run: python prepare_data.py --year {y}")
         d = pd.read_parquet(p)
         w = pd.read_parquet(DATA / f"weather_{y}.parquet")
-        w = w.assign(hour=w.ts_utc.dt.tz_localize(None))[["hour", "surface_pressure", "temperature_2m"]]
+        w = w.assign(hour=w.ts_utc.dt.tz_localize(None))[["hour", "surface_pressure", "temperature_2m", "relative_humidity_2m"]]  # Humidity: icing, for M2.
         frames.append(d.assign(hour=d.ts.dt.floor("h")).merge(w, on="hour", how="left").drop(columns="hour"))
     d = pd.concat(frames, ignore_index=True)
     facts = pd.read_csv(DATA / "Kelmarsh_WT_static.csv", encoding="utf-8-sig")
@@ -211,7 +211,7 @@ def evaluate(final: bool = False) -> dict:
     res["top_factors_by_mean_abs_kw"] = _importance(d)
     RESULTS.mkdir(exist_ok=True)
     (RESULTS / f"m1_wind_{name}.json").write_text(json.dumps(res, indent=1))
-    _plot(d, res, name)
+    plot_expected(d, res, f"m1_wind_{name}")
     return res
 
 
@@ -222,31 +222,42 @@ def _importance(d: pd.DataFrame) -> dict:
     return {f: round(float(v), 1) for f, v in sorted(zip(meta["features"], c.mean(axis=0)), key=lambda x: -x[1])}
 
 
-def _plot(d: pd.DataFrame, res: dict, name: str) -> None:
+COLORS = {"blue": "#2a78d6", "orange": "#eb6834", "ink": "#0b0b0b", "muted": "#52514e", "grid": "#e6e5e0", "surface": "#fcfcfb"}
+
+
+def chart_style():
+    """Shared look for every results chart. Returns pyplot."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    BLUE, ORANGE, INK, MUTED, GRID, SURFACE = "#2a78d6", "#eb6834", "#0b0b0b", "#52514e", "#e6e5e0", "#fcfcfb"
+    MUTED, GRID, SURFACE = COLORS["muted"], COLORS["grid"], COLORS["surface"]
     plt.rcParams.update({"figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "axes.edgecolor": GRID, "axes.grid": True, "grid.color": GRID, "axes.axisbelow": True, "axes.spines.top": False, "axes.spines.right": False, "axes.spines.left": False,
                          "axes.titlelocation": "left", "axes.titlesize": 12, "axes.titleweight": "bold", "axes.labelcolor": MUTED, "xtick.color": MUTED, "ytick.color": MUTED, "xtick.major.size": 0, "ytick.major.size": 0, "legend.frameon": False})
+    return plt
+
+
+def plot_expected(d: pd.DataFrame, res: dict, file: str, model: str = "M1", xlabel: str = "Nacelle wind speed (m/s)") -> None:
+    """Real vs. expected along the power curve, and error by wind speed against the baseline. Shared with M1-W."""
+    plt = chart_style()
+    BLUE, ORANGE, INK, SURFACE = COLORS["blue"], COLORS["orange"], COLORS["ink"], COLORS["surface"]
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.3))
     g = d.groupby((d.wind_ms * 2).round() / 2)
     g = {k: v for k, v in g if len(v) >= 20}
     x = np.array(list(g))
     m = lambda c: np.array([(v[c] / v.rated_kw).mean() * 100 for v in g.values()])
-    axes[0].fill_between(x, m("exp_p10_kw"), m("exp_p90_kw"), color=BLUE, alpha=0.18, linewidth=0, label="M1 10-90% band")
-    axes[0].plot(x, m("exp_p50_kw"), color=BLUE, linewidth=2, label="M1 expected")
+    axes[0].fill_between(x, m("exp_p10_kw"), m("exp_p90_kw"), color=BLUE, alpha=0.18, linewidth=0, label=f"{model} 10-90% band")
+    axes[0].plot(x, m("exp_p50_kw"), color=BLUE, linewidth=2, label=f"{model} expected")
     axes[0].scatter(x, m("power_kw"), s=18, color=INK, zorder=3, label="Actual")
-    axes[0].set_title("Real vs. expected, healthy rows"); axes[0].set_xlabel("Nacelle wind speed (m/s)"); axes[0].set_ylabel("Power (% of rated, mean per bin)"); axes[0].legend(fontsize=9)
+    axes[0].set_title("Real vs. expected, healthy rows"); axes[0].set_xlabel(xlabel); axes[0].set_ylabel("Power (% of rated, mean per bin)"); axes[0].legend(fontsize=9)
     labels = [b["wind_ms"].strip("(]").replace(", ", "-").replace("-0.001", "0") for b in res["by_wind"]]
     pos = np.arange(len(labels))
     axes[1].bar(pos - 0.2, [b["baseline_mae_pct"] for b in res["by_wind"]], width=0.38, color=ORANGE, label="Baseline: binned curve")
-    axes[1].bar(pos + 0.2, [b["model_mae_pct"] for b in res["by_wind"]], width=0.38, color=BLUE, label="M1")
+    axes[1].bar(pos + 0.2, [b["model_mae_pct"] for b in res["by_wind"]], width=0.38, color=BLUE, label=model)
     axes[1].set_xticks(pos, labels); axes[1].grid(axis="x", visible=False)
-    axes[1].set_title("Error by wind speed: lower is better"); axes[1].set_xlabel("Nacelle wind speed (m/s)"); axes[1].set_ylabel("Mean absolute error (% of rated)"); axes[1].legend(fontsize=9)
+    axes[1].set_title("Error by wind speed: lower is better"); axes[1].set_xlabel(xlabel); axes[1].set_ylabel("Mean absolute error (% of rated)"); axes[1].legend(fontsize=9)
     fig.tight_layout()
     (RESULTS / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(RESULTS / "figures" / f"m1_wind_{name}.png", dpi=150, facecolor=SURFACE)
+    fig.savefig(RESULTS / "figures" / f"{file}.png", dpi=150, facecolor=SURFACE)
     plt.close(fig)
 
 
