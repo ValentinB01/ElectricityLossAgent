@@ -172,7 +172,7 @@ def predict_expected(df: pd.DataFrame, boosters=None, meta=None) -> pd.DataFrame
     q = np.column_stack([boosters[n].predict(X) for n in QUANTILES])
     q.sort(axis=1)  # Separate quantile models can cross.
     rated = df.rated_kw.to_numpy(float)[:, None]
-    q = np.clip(q, 0, None) * rated
+    q = q * rated  # Not clipped at 0: an idle turbine draws a little power, so real output can be slightly negative.
     return df.assign(exp_p10_kw=q[:, 0], exp_p50_kw=q[:, 1], exp_p90_kw=q[:, 2])
 
 
