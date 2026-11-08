@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.evaluation.metrics import classification_metrics
-from src.evaluation.thresholds import select_threshold
-from src.validation import ids_digest
+from src.consumers.evaluation.metrics import classification_metrics
+from src.consumers.evaluation.thresholds import select_threshold
+from src.consumers.validation import ids_digest
 from .config import MODELS, diagnostic_config, load_training_config
 from .datasets import PreparedDataStore
 from .experiment_tracker import choose_device, hardware_info, new_run, seed_everything, write_json
@@ -56,7 +56,7 @@ def run_training(config: dict, models: list[str], evaluate=False, visualize=Fals
                                                  'evaluation': config['evaluation'], 'dataset_metadata': store.manifest,
                                                  'hardware': manifest['hardware']})
         grid.to_csv(base / 'threshold_grid.csv', index=False)
-        from src.evaluation.evaluator import prediction_table
+        from src.consumers.evaluation.evaluator import prediction_table
         predictions = prediction_table(val, probability, selection)
         (run_dir / 'predictions').mkdir(exist_ok=True)
         predictions.to_csv(run_dir / 'predictions' / f'{name}_val.csv', index=False)
@@ -69,10 +69,10 @@ def run_training(config: dict, models: list[str], evaluate=False, visualize=Fals
     if not smoke:
         write_json(Path(config['experiment']['output_dir']) / 'latest_run.json', {'run_dir': str(run_dir), 'run_id': manifest['run_id']})
     if evaluate or visualize:
-        from src.evaluation.evaluator import evaluate_run
+        from src.consumers.evaluation.evaluator import evaluate_run
         evaluate_run(run_dir, publish=not smoke)
     if visualize:
-        from src.visualization.comparison import generate_comparison
+        from src.consumers.visualization.comparison import generate_comparison
         generate_comparison(run_dir, publish=not smoke)
     LOGGER.info('%s run complete: %s', 'DIAGNOSTIC ONLY' if smoke else 'Full-population', run_dir)
     return run_dir

@@ -9,9 +9,9 @@ import pandas as pd
 import pytest
 import yaml
 
-from src.config import load_config
-from src.dataset_builders import MODELS, prepare
-from src.validation import validate_artifacts
+from src.consumers.config import load_config
+from src.consumers.dataset_builders import MODELS, prepare
+from src.consumers.validation import validate_artifacts
 
 
 def test_all_variants_serialization_and_exact_consumer_alignment(synthetic_csv):
@@ -67,7 +67,7 @@ def test_cli_and_separate_sensitivity_experiment(synthetic_csv, tmp_path):
     config["filtering"]["filter_insufficient_history"] = True
     config_path = tmp_path / "config.yaml"
     config_path.write_text(yaml.safe_dump(config))
-    result = subprocess.run([sys.executable, "-m", "src.prepare_data", "--config", str(config_path), "--all"],
+    result = subprocess.run([sys.executable, "-m", "src.consumers.prepare_data", "--config", str(config_path), "--all"],
                             capture_output=True, text=True, timeout=90)
     assert result.returncode == 0, result.stderr
     root = Path(config["data"]["output_dir"])

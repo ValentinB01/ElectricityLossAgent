@@ -12,9 +12,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sklearn.metrics import precision_recall_curve, roc_curve
 
-from src.evaluation.evaluator import locate_run
-from src.training.config import load_training_config
-from src.training.experiment_tracker import read_json
+from src.consumers.evaluation.evaluator import locate_run
+from src.consumers.training.config import load_training_config
+from src.consumers.training.experiment_tracker import read_json
 from .plots import COLORS, LABELS
 
 

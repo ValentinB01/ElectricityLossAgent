@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 import torch
 from torch.utils.data import Dataset
 
-from src.validation import FORBIDDEN_FEATURES, ids_digest
+from src.consumers.validation import FORBIDDEN_FEATURES, ids_digest
 
 
 @dataclass
@@ -43,7 +43,7 @@ class PreparedDataStore:
             self.manifest = json.loads((self.root / 'shared/run_manifest.json').read_text())
             self.assignments = pd.read_csv(self.root / 'shared/splits.csv', dtype={'CONS_NO': str})
         except FileNotFoundError as exc:
-            raise FileNotFoundError('Processed data missing. Run python -m src.prepare_data --config config.yaml --all') from exc
+            raise FileNotFoundError('Processed data missing. Run python -m src.consumers.prepare_data --config config/consumers/sgcc.yaml --all') from exc
         if not self.manifest.get('validation_passed'):
             raise ValueError('The preprocessing generation did not complete validation')
         if not self.assignments.CONS_NO.is_unique or set(self.assignments.split) != {'train', 'val', 'test'}:
@@ -93,7 +93,7 @@ class PreparedDataStore:
                     if features is not None and not np.isfinite(features[start:start + 512]).all():
                         raise ValueError('Nonfinite hybrid statistics')
         except FileNotFoundError as exc:
-            raise FileNotFoundError(f'Missing prepared {model}/{split} file. Run python -m src.prepare_data --config config.yaml --all') from exc
+            raise FileNotFoundError(f'Missing prepared {model}/{split} file. Run python -m src.consumers.prepare_data --config config/consumers/sgcc.yaml --all') from exc
         if len(set(ids)) != len(ids) or set(ids) != set(wanted.CONS_NO) or y.shape != (len(ids),):
             raise ValueError(f'{model}/{split} consumer IDs differ from the shared assignment')
         order = pd.Series(np.arange(len(ids)), index=ids).loc[wanted.CONS_NO].to_numpy()

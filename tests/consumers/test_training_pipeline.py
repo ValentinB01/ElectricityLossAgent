@@ -9,15 +9,15 @@ import pandas as pd
 import pytest
 import torch
 
-from src.dataset_builders import MODELS, prepare
-from src.evaluation.evaluator import combine_predictions, evaluate_run, prediction_table
-from src.models.cnn1d_model import CNN1DClassifier
-from src.models.hybrid_model import HybridClassifier
-from src.training.config import load_training_config, validate_training_config
-from src.training.datasets import ConsumerDataset, PreparedDataStore
-from src.training.experiment_tracker import choose_device, seed_everything, write_json
-from src.training.train_neural import load_network, train_neural
-from src.training.train_trees import positive_class_weight, train_tree
+from src.consumers.dataset_builders import MODELS, prepare
+from src.consumers.evaluation.evaluator import combine_predictions, evaluate_run, prediction_table
+from src.consumers.models.cnn1d_model import CNN1DClassifier
+from src.consumers.models.hybrid_model import HybridClassifier
+from src.consumers.training.config import load_training_config, validate_training_config
+from src.consumers.training.datasets import ConsumerDataset, PreparedDataStore
+from src.consumers.training.experiment_tracker import choose_device, seed_everything, write_json
+from src.consumers.training.train_neural import load_network, train_neural
+from src.consumers.training.train_trees import positive_class_weight, train_tree
 
 
 @pytest.fixture
@@ -131,7 +131,7 @@ def test_actual_processed_data_integration_if_available():
 
 
 def test_synthetic_end_to_end_plots_dashboard_and_tracking(prepared, training_config):
-    from src.training.train import run_training
+    from src.consumers.training.train import run_training
     training_config['data']['processed_dir'] = str(prepared.root)
     training_config['visualization']['generate_consumer_examples'] = False
     run = run_training(training_config, list(MODELS), evaluate=True, visualize=True, smoke=True)

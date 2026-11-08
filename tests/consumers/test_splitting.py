@@ -1,7 +1,7 @@
 import numpy as np
 
-from src.data_loader import ConsumerData, load_dataset
-from src.splitting import make_splits
+from src.consumers.data_loader import ConsumerData, load_dataset
+from src.consumers.splitting import make_splits
 import pandas as pd
 
 

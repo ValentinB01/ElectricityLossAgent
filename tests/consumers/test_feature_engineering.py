@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.feature_engineering import engineer_features, pair_correlation
+from src.consumers.feature_engineering import engineer_features, pair_correlation
 
 
 def extract(rows, config, start="2014-01-01", threshold=100):

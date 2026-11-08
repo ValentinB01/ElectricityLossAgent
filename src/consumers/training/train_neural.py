@@ -11,9 +11,9 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from src.evaluation.metrics import classification_metrics
-from src.models.cnn1d_model import CNN1DClassifier
-from src.models.hybrid_model import HybridClassifier
+from src.consumers.evaluation.metrics import classification_metrics
+from src.consumers.models.cnn1d_model import CNN1DClassifier
+from src.consumers.models.hybrid_model import HybridClassifier
 from .datasets import ConsumerDataset, SplitData
 from .experiment_tracker import choose_device, seed_everything, write_json
 from .train_trees import positive_class_weight

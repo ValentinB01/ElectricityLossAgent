@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.evaluation.metrics import classification_metrics
-from src.training.config import load_training_config
-from src.visualization.baselines import fit_baselines
+from src.consumers.evaluation.metrics import classification_metrics
+from src.consumers.training.config import load_training_config
+from src.consumers.visualization.baselines import fit_baselines
 
 
 def bundle(split, x, y):

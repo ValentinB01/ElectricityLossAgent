@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import average_precision_score
 
-from src.evaluation.metrics import classification_metrics
+from src.consumers.evaluation.metrics import classification_metrics
 from .datasets import SplitData
 from .experiment_tracker import write_json
 
@@ -31,7 +31,7 @@ def _fit(name, params, positive_weight, seed, threads, patience, train, val):
         raise ValueError('Only train fitting and val early stopping are allowed')
     if name == 'lightgbm':
         from lightgbm import early_stopping, record_evaluation
-        from src.models.lightgbm_model import create_classifier
+        from src.consumers.models.lightgbm_model import create_classifier
         model = create_classifier(params, seed, threads, positive_weight)
         history = {}
         evaluation = {'eval_X': (train.tabular(), val.tabular()), 'eval_y': (train.y, val.y)} if 'eval_X' in inspect.signature(model.fit).parameters else {'eval_set': [(train.tabular(), train.y), (val.tabular(), val.y)]}
@@ -43,7 +43,7 @@ def _fit(name, params, positive_weight, seed, threads, patience, train, val):
                               'val_average_precision': history['val']['average_precision']})
         best = model.best_iteration_
     else:
-        from src.models.xgboost_model import create_classifier
+        from src.consumers.models.xgboost_model import create_classifier
         model = create_classifier(params, seed, threads, positive_weight, patience)
         model.fit(train.tabular(), train.y, eval_set=[(train.tabular(), train.y), (val.tabular(), val.y)], verbose=False)
         history = model.evals_result()

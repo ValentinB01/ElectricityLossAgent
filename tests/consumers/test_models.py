@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 import torch
 
-from src.models.cnn1d_model import CNN1DClassifier
-from src.models.hybrid_model import HybridClassifier
-from src.models.lightgbm_model import create_classifier as lightgbm_classifier
-from src.models.xgboost_model import create_classifier as xgboost_classifier
+from src.consumers.models.cnn1d_model import CNN1DClassifier
+from src.consumers.models.hybrid_model import HybridClassifier
+from src.consumers.models.lightgbm_model import create_classifier as lightgbm_classifier
+from src.consumers.models.xgboost_model import create_classifier as xgboost_classifier
 
 
 @pytest.mark.parametrize('name', ['lightgbm', 'xgboost'])

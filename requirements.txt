@@ -20,7 +20,7 @@ streamlit
 litellm               # LLM provider client; without an API key the agent runs in deterministic mode
 
 # Consumers module (SGCC theft detection). Exact versions of the verified run:
-# requirements-lock.txt
+# src/consumers/requirements-lock.txt
 joblib>=1.4,<2
 xgboost>=3,<4
 torch>=2.9,<3         # CPU is enough; see docs/consumers-sgcc.md

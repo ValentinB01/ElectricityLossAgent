@@ -1,6 +1,6 @@
 data:
-  input_path: data.csv
-  output_dir: data/processed
+  input_path: ../../data.csv
+  output_dir: ../../data/processed
   chunksize: 1024
   invalid_policy: nan  # nan or error (non-numeric / infinite / numeric overflow)
   negative_policy: nan  # nan, error, or clip_zero

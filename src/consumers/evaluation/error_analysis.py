@@ -7,7 +7,7 @@ from itertools import combinations
 import numpy as np
 import pandas as pd
 
-from src.training.experiment_tracker import read_json, write_json
+from src.consumers.training.experiment_tracker import read_json, write_json
 
 QUALITY_COLUMNS = ['missing_ratio', 'zero_ratio', 'coefficient_of_variation', 'max_consumption',
                    'observed_days', 'mean_consumption', 'std_consumption', 'longest_missing_streak',

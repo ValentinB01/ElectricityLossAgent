@@ -8,10 +8,10 @@ import shutil
 import numpy as np
 import pandas as pd
 
-from src.evaluation.evaluator import locate_run
-from src.evaluation.error_analysis import analyze_errors
-from src.training.config import load_training_config
-from src.training.experiment_tracker import read_json, write_json
+from src.consumers.evaluation.evaluator import locate_run
+from src.consumers.evaluation.error_analysis import analyze_errors
+from src.consumers.training.config import load_training_config
+from src.consumers.training.experiment_tracker import read_json, write_json
 from .plots import plt, COLORS, LABELS, comparison_figures, model_figures, save_figure
 
 

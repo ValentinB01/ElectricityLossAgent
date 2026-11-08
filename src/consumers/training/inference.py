@@ -5,7 +5,7 @@ import time
 import joblib
 import torch
 
-from src.evaluation.metrics import validate_scores
+from src.consumers.evaluation.metrics import validate_scores
 from .experiment_tracker import choose_device
 from .train_neural import load_network, make_loader, predict_network
 

@@ -10,7 +10,7 @@ from .dataset_builders import MODELS, prepare
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="config.yaml", help="YAML paths resolve relative to this file")
+    parser.add_argument("--config", default="config/consumers/sgcc.yaml", help="YAML paths resolve relative to this file")
     selection = parser.add_mutually_exclusive_group(required=True)
     selection.add_argument("--all", action="store_true", help="Prepare all four variants")
     selection.add_argument("--model", choices=MODELS)

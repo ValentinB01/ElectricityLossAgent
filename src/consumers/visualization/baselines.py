@@ -20,12 +20,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeClassifier
 import yaml
 
-from src.evaluation.evaluator import locate_run, prediction_table
-from src.evaluation.metrics import classification_metrics
-from src.evaluation.thresholds import select_threshold
-from src.training.config import ROOT, load_training_config
-from src.training.datasets import PreparedDataStore
-from src.training.experiment_tracker import read_json, write_json
+from src.consumers.evaluation.evaluator import locate_run, prediction_table
+from src.consumers.evaluation.metrics import classification_metrics
+from src.consumers.evaluation.thresholds import select_threshold
+from src.consumers.training.config import ROOT, load_training_config
+from src.consumers.training.datasets import PreparedDataStore
+from src.consumers.training.experiment_tracker import read_json, write_json
 from .plots import COLORS, LABELS, plt
 
 LOGGER = logging.getLogger(__name__)
@@ -185,7 +185,7 @@ def run_comparison(run_dir: Path, settings_path: Path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-dir')
-    parser.add_argument('--config', type=Path, default=ROOT / 'configs/baselines.yaml')
+    parser.add_argument('--config', type=Path, default=ROOT / 'config/consumers/baselines.yaml')
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
     run_comparison(locate_run(load_training_config(), args.run_dir), args.config)

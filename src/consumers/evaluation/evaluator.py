@@ -10,10 +10,10 @@ import shutil
 import numpy as np
 import pandas as pd
 
-from src.training.config import load_training_config
-from src.training.datasets import PreparedDataStore
-from src.training.experiment_tracker import append_registry, read_json, write_json, seed_everything
-from src.training.inference import predict_frozen_model
+from src.consumers.training.config import load_training_config
+from src.consumers.training.datasets import PreparedDataStore
+from src.consumers.training.experiment_tracker import append_registry, read_json, write_json, seed_everything
+from src.consumers.training.inference import predict_frozen_model
 from .metrics import classification_metrics, top_k_metrics
 
 LOGGER = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ def locate_run(config: dict, explicit: str | None = None) -> Path:
         return Path(explicit).resolve()
     pointer = Path(config['experiment']['output_dir']) / 'latest_run.json'
     if not pointer.is_file():
-        raise FileNotFoundError('No completed full training selection. Run python -m src.training.train --all first.')
+        raise FileNotFoundError('No completed full training selection. Run python -m src.consumers.training.train --all first.')
     return Path(read_json(pointer)['run_dir'])
 
 

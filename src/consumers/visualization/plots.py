@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-os.environ.setdefault('MPLCONFIGDIR', str(Path(__file__).resolve().parents[2] / '.cache/matplotlib'))
+os.environ.setdefault('MPLCONFIGDIR', str(Path(__file__).resolve().parents[3] / '.cache/matplotlib'))
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

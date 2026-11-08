@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.data_loader import load_dataset
+from src.consumers.data_loader import load_dataset
 
 
 def test_full_calendar_and_chronology(synthetic_csv):

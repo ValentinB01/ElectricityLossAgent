@@ -7,9 +7,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.evaluation.bootstrap import bootstrap_run, paired_bootstrap
-from src.evaluation.metrics import classification_metrics, top_k_metrics, validate_scores
-from src.evaluation.thresholds import select_threshold
+from src.consumers.evaluation.bootstrap import bootstrap_run, paired_bootstrap
+from src.consumers.evaluation.metrics import classification_metrics, top_k_metrics, validate_scores
+from src.consumers.evaluation.thresholds import select_threshold
 
 
 @pytest.fixture
@@ -92,14 +92,14 @@ import importlib.abc
 import sys
 class ExcludeLaterCommits(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if fullname.split('.')[0] == 'torch' or fullname.startswith(('src.training', 'src.models', 'src.visualization')):
+        if fullname.split('.')[0] == 'torch' or fullname.startswith(('src.consumers.training', 'src.consumers.models', 'src.consumers.visualization')):
             raise ModuleNotFoundError('Unavailable in evaluation-only commit: ' + fullname, name=fullname)
 sys.meta_path.insert(0, ExcludeLaterCommits())
-from src.evaluation.metrics import classification_metrics
-from src.evaluation.thresholds import select_threshold
-from src.evaluation.bootstrap import paired_bootstrap, bootstrap_run
+from src.consumers.evaluation.metrics import classification_metrics
+from src.consumers.evaluation.thresholds import select_threshold
+from src.consumers.evaluation.bootstrap import paired_bootstrap, bootstrap_run
 assert classification_metrics([0, 1], [.1, .9])['average_precision'] == 1.
-assert not any(n.startswith(('src.training', 'src.models', 'src.visualization')) for n in sys.modules)
+assert not any(n.startswith(('src.consumers.training', 'src.consumers.models', 'src.consumers.visualization')) for n in sys.modules)
 """
     result = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, timeout=60)
     assert result.returncode == 0, result.stderr

@@ -6,12 +6,12 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 MODELS = ('lightgbm', 'xgboost', 'cnn1d', 'hybrid')
 
 
 def load_training_config(path: str | Path | None = None) -> dict:
-    default = ROOT / 'configs/training.yaml'
+    default = ROOT / 'config/consumers/training.yaml'
     with default.open(encoding='utf-8') as handle:
         config = yaml.safe_load(handle)
     selected = Path(path).resolve() if path else default

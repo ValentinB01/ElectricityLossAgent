@@ -1,6 +1,6 @@
 # SGCC electricity theft detection
 
-This is the consumer-classification implementation for Energy Loss Agent. The original project overview is preserved in [docs/agent-overview.md](docs/agent-overview.md); the producers-module plan remains in [docs/producers-plan.md](docs/producers-plan.md).
+This is the consumer-classification implementation for Energy Loss Agent, in `src/consumers/`. The project overview is the [README](../README.md); the producers-module plan is in [producers-plan.md](producers-plan.md).
 
 This project prepares consumer-level supervised binary classification datasets, then trains, evaluates and compares LightGBM, XGBoost, a PyTorch 1D CNN, and a hybrid CNN/statistical-feature model. Preprocessing and training have separate entry points: preparing data never trains a classifier.
 
@@ -10,40 +10,40 @@ The expected source has 42,372 consumers (38,757 normal, 3,615 theft), 1,034 dai
 
 ## Setup and execution
 
-Run from this folder. The verified environment uses Python 3.14.4; use Python 3.14 with the supplied lockfile. Preprocessing needs no GPU. Training uses LightGBM, XGBoost and PyTorch and supports CPU execution.
+Run from the repository root. The verified environment uses Python 3.14.4; use Python 3.14 with the supplied lockfile. Preprocessing needs no GPU. Training uses LightGBM, XGBoost and PyTorch and supports CPU execution.
 
 Windows PowerShell:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-lock.txt
+.\.venv\Scripts\python.exe -m pip install -r src/consumers/requirements-lock.txt
 .\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe -m src.prepare_data --config config.yaml --all
-.\.venv\Scripts\python.exe -m src.validation --output-dir data/processed
+.\.venv\Scripts\python.exe -m src.consumers.prepare_data --config config/consumers/sgcc.yaml --all
+.\.venv\Scripts\python.exe -m src.consumers.validation --output-dir data/processed
 ```
 
 Linux/macOS:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-lock.txt
+.venv/bin/python -m pip install -r src/consumers/requirements-lock.txt
 .venv/bin/python -m pytest -q
-.venv/bin/python -m src.prepare_data --config config.yaml --all
-.venv/bin/python -m src.validation --output-dir data/processed
+.venv/bin/python -m src.consumers.prepare_data --config config/consumers/sgcc.yaml --all
+.venv/bin/python -m src.consumers.validation --output-dir data/processed
 ```
 
-`requirements.txt` defines supported dependency ranges; `requirements-lock.txt` records the exact versions used for this run. Install the former when intentionally updating dependencies, then rerun tests and regenerate datasets. Binary wheels must be available for your platform/Python version.
+`requirements.txt` defines supported dependency ranges; `src/consumers/requirements-lock.txt` records the exact versions used for this run. Install the former when intentionally updating dependencies, then rerun tests and regenerate datasets. Binary wheels must be available for your platform/Python version.
 
 Pandas is pinned to 2.3.3: this host's Windows Application Control rejected the pandas 3.1.1 binary wheel. The pinned version passed the complete test suite and real-data run without changing Windows security settings.
 
 With the environment activated, the equivalent entry points are:
 
 ```bash
-python -m src.prepare_data --config config.yaml --all
-python -m src.prepare_data --config config.yaml --model lightgbm
-python -m src.prepare_data --config config.yaml --model xgboost
-python -m src.prepare_data --config config.yaml --model cnn1d
-python -m src.prepare_data --config config.yaml --model hybrid
+python -m src.consumers.prepare_data --config config/consumers/sgcc.yaml --all
+python -m src.consumers.prepare_data --config config/consumers/sgcc.yaml --model lightgbm
+python -m src.consumers.prepare_data --config config/consumers/sgcc.yaml --model xgboost
+python -m src.consumers.prepare_data --config config/consumers/sgcc.yaml --model cnn1d
+python -m src.consumers.prepare_data --config config/consumers/sgcc.yaml --model hybrid
 ```
 
 All paths in YAML resolve relative to that YAML file. The default input is the existing root-level `data.csv`; no copy or move is necessary. Unknown settings and unsupported policies fail explicitly. When source content, configuration, code, or dependency versions change, use `--all` or a new output directory. Individual-variant runs reject mixing different generations. Only consume outputs after successful completion and `shared/run_manifest.json` reports `validation_passed: true`.
@@ -51,16 +51,16 @@ All paths in YAML resolve relative to that YAML file. The default input is the e
 ## Layout and artifacts
 
 ```text
-config.yaml                 centralized policies and paths
-src/config.py               defaults and configuration validation
-src/data_loader.py          chunked loading, audit, calendar alignment
-src/splitting.py            shared stratified consumer assignment
-src/feature_engineering.py  common statistical feature extraction
-src/preprocessing.py        saved fit/transform components
-src/dataset_builders.py     serialization and reports
-src/prepare_data.py         command-line entry point
-src/validation.py           full saved-artifact validation
-tests/                      synthetic unit and integration tests
+config/consumers/sgcc.yaml  centralized policies and paths
+src/consumers/config.py               defaults and configuration validation
+src/consumers/data_loader.py          chunked loading, audit, calendar alignment
+src/consumers/splitting.py            shared stratified consumer assignment
+src/consumers/feature_engineering.py  common statistical feature extraction
+src/consumers/preprocessing.py        saved fit/transform components
+src/consumers/dataset_builders.py     serialization and reports
+src/consumers/prepare_data.py         command-line entry point
+src/consumers/validation.py           full saved-artifact validation
+tests/consumers/            synthetic unit and integration tests
 data/processed/
   shared/                   splits, standardized data, audit, reports, manifest
   lightgbm/                 train/val/test.parquet, feature_names.json, metadata.json
@@ -190,27 +190,27 @@ The preprocessing pipeline was executed on the supplied `data.csv` on November 7
 Install the expanded requirements in the existing environment; processed data does not need regeneration:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-lock.txt
+.\.venv\Scripts\python.exe -m pip install -r src/consumers/requirements-lock.txt
 .\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe -m src.training.train --all --smoke --evaluate --visualize
-.\.venv\Scripts\python.exe -m src.training.train --all --evaluate --visualize
+.\.venv\Scripts\python.exe -m src.consumers.training.train --all --smoke --evaluate --visualize
+.\.venv\Scripts\python.exe -m src.consumers.training.train --all --evaluate --visualize
 ```
 
 With the environment activated, Windows and Linux use the same commands:
 
 ```bash
-python -m src.training.train --model lightgbm
-python -m src.training.train --model xgboost
-python -m src.training.train --model cnn1d
-python -m src.training.train --model hybrid
-python -m src.training.train --all --evaluate --visualize
-python -m src.evaluation.evaluator --all
-python -m src.visualization.comparison --all
-python -m src.visualization.dashboard
-python -m src.evaluation.validation
+python -m src.consumers.training.train --model lightgbm
+python -m src.consumers.training.train --model xgboost
+python -m src.consumers.training.train --model cnn1d
+python -m src.consumers.training.train --model hybrid
+python -m src.consumers.training.train --all --evaluate --visualize
+python -m src.consumers.evaluation.evaluator --all
+python -m src.consumers.visualization.comparison --all
+python -m src.consumers.visualization.dashboard
+python -m src.consumers.evaluation.validation
 ```
 
-Use `--config configs/training.yaml` explicitly when desired. Configuration paths resolve relative to the YAML file, with the default YAML under `configs/`; commands otherwise locate it relative to the package, rather than assuming the process working directory. Existing preprocessed data is loaded and audited without altering it. Missing files produce instructions to run the preprocessing command.
+Use `--config config/consumers/training.yaml` explicitly when desired. Configuration paths resolve relative to the YAML file, with the default YAML under `config/consumers/`; commands otherwise locate it relative to the package, rather than assuming the process working directory. Existing preprocessed data is loaded and audited without altering it. Missing files produce instructions to run the preprocessing command.
 
 The actual input schemas are discovered from saved files: 80 tree features, `(N,1035,2)` sequences, and 160 hybrid statistical inputs. IDs and labels are verified against shared assignments. Different orders are explicitly aligned by `CONS_NO`; hybrid branches are independently recomputed from their shared source consumers before training. Arrays are memory mapped, and the PyTorch Dataset converts sequences to `(2,1035)` without including identifiers in predictive tensors.
 
@@ -223,12 +223,12 @@ The actual input schemas are discovered from saved files: 80 tree features, `(N,
 
 Neural defaults: AdamW, learning rate 0.001, weight decay 0.0001, batch size 128, at most 100 epochs, AP-based early stopping patience 12 and minimum improvement 0.0001, ReduceLROnPlateau, dropout 0.3 and gradient clipping 1.0. The best checkpoint, not the final epoch, is evaluated. Training loaders shuffle; validation/test do not. CPU is supported, CUDA/MPS are auto-detected, and CUDA mixed precision is enabled only on compatible CUDA runs. This Windows installation uses a CPU PyTorch wheel and falls back to CPU on its Intel Arc hardware.
 
-Tree runs compare unweighted and weighted candidates by default. The positive weight is `training_normal/training_theft`; validation/test class counts never determine it. Neural `weighted_loss: true` uses the same train-only ratio. Set it to false for an independently tracked unweighted baseline. `compare_class_weights`, architecture widths, epochs, patience, thresholds and other settings are centralized in `configs/training.yaml`.
+Tree runs compare unweighted and weighted candidates by default. The positive weight is `training_normal/training_theft`; validation/test class counts never determine it. Neural `weighted_loss: true` uses the same train-only ratio. Set it to false for an independently tracked unweighted baseline. `compare_class_weights`, architecture widths, epochs, patience, thresholds and other settings are centralized in `config/consumers/training.yaml`.
 
 Enable optional Optuna tuning with `tuning_enabled: true`. Trial count and each search range are configurable under the model's `tuning_space`; each range is `[int|float, lower, upper, logarithmic]`. TPE uses the experiment seed. Tuning sees train/validation only. Default tuning is disabled. To run multiple independently archived seeds:
 
 ```bash
-python -m src.training.train --all --evaluate --visualize --seeds 42,7,123
+python -m src.consumers.training.train --all --evaluate --visualize --seeds 42,7,123
 ```
 
 All requested models finish training and validation-only threshold selection **before any test inference**. The manifest records `all_selections_frozen`; evaluation refuses an incomplete selection. Static dataset-integrity inspection may read test identities/labels, but never optimizes or scores a classifier during selection. The comparison preselects the best model by validation AP, then reports its test results alongside the other frozen models.
@@ -262,7 +262,7 @@ Prediction CSVs include original IDs, true labels, continuous risk scores, fixed
 
 The comparison CSV/JSON contains sklearn Average Precision, ROC-AUC, accuracy, balanced accuracy, precision, recall, F1, F2, MCC, specificity, FPR, FNR, Brier score and TP/TN/FP/FN. Fixed-threshold values use the `fixed_05_` prefix. Undefined metrics are explicit nulls, not fabricated zero performance. Precision@K and Recall@K use `ceil(K% × N)` on the full test population with ID-only tie breaking.
 
-Static figures are saved at 300 DPI PNG and as SVG by default. They include ROC/PR curves, raw and row-normalized confusion matrices, main metrics, error counts/rates, validation threshold sweeps, raw score distributions, learning histories, top-20 gain importance, runtime, top-K detection, agreement/disagreement, baseline differences in percentage points, and representative raw-consumption histories. LightGBM uses total split gain; XGBoost uses mean split gain. These definitions are kept distinct. No SHAP or gain result is presented as causal evidence. `python -m src.evaluation.validation` independently reloads checkpoints, recomputes metrics from prediction CSVs, checks threshold selection from validation scores, verifies consumer alignment and confirms required figures and the embedded dashboard exist.
+Static figures are saved at 300 DPI PNG and as SVG by default. They include ROC/PR curves, raw and row-normalized confusion matrices, main metrics, error counts/rates, validation threshold sweeps, raw score distributions, learning histories, top-20 gain importance, runtime, top-K detection, agreement/disagreement, baseline differences in percentage points, and representative raw-consumption histories. LightGBM uses total split gain; XGBoost uses mean split gain. These definitions are kept distinct. No SHAP or gain result is presented as causal evidence. `python -m src.consumers.evaluation.validation` independently reloads checkpoints, recomputes metrics from prediction CSVs, checks threshold selection from validation scores, verifies consumer alignment and confirms required figures and the embedded dashboard exist.
 
 `outputs/dashboard/model_comparison.html` embeds Plotly and works without a backend or CDN. It includes interactive comparisons, histories, thresholds, gain importance and a searchable, filterable table limited to the first configured number of IDs in lexical order. Full predictions remain in CSV. `outputs/reports/model_comparison.md` contains actual results, selection rules, computation costs and limitations.
 
@@ -296,7 +296,7 @@ Measured quality findings:
 - All 157 consumers with fewer than 180 observations, including five fully missing histories, were retained. There are 2,109 observed all-zero consumers and 5,788,603 observed zero measurements. Their edge cases were handled explicitly.
 - Measurement availability differs by class: 25.1686% missing for normal consumers and 31.5349% for theft-labeled consumers after calendar insertion. These are descriptive figures, not preprocessing inputs or evidence that missingness establishes theft.
 
-See [the JSON report](data/processed/shared/dataset_report.json), [the Markdown report](data/processed/shared/dataset_report.md), and [the manifest](data/processed/shared/run_manifest.json) for the exact measured counts, feature names, parameters and reproducibility record. Optional ablation and filtered outputs were tested on synthetic data and remain disabled for this complete-population run.
+See [the JSON report](../data/processed/shared/dataset_report.json), [the Markdown report](../data/processed/shared/dataset_report.md), and [the manifest](../data/processed/shared/run_manifest.json) for the exact measured counts, feature names, parameters and reproducibility record. Optional ablation and filtered outputs were tested on synthetic data and remain disabled for this complete-population run.
 
 ## Verified full training results
 
@@ -315,4 +315,4 @@ All 50 tests passed. Completed-run verification independently reproduced saved m
 
 Development limitation: the first diagnostic implementation evaluated 128 final-test consumers before full training. No predefined model settings or selection rules were changed using those results. Future smoke inference uses validation consumers instead. The initial exposure remains disclosed, so this test population should not be described as completely blind during development.
 
-Full results: [comparison report](outputs/reports/model_comparison.md), [metrics CSV](outputs/metrics/model_comparison.csv), [interactive dashboard](outputs/dashboard/model_comparison.html). Each trained checkpoint is under `experiments/<model>/20261107T200402624046Z_0a32ed6a_8d3773/`.
+Full results: [comparison report](../outputs/reports/model_comparison.md), [metrics CSV](../outputs/metrics/model_comparison.csv), [interactive dashboard](../outputs/dashboard/model_comparison.html). Each trained checkpoint is under `experiments/<model>/20261107T200402624046Z_0a32ed6a_8d3773/`.

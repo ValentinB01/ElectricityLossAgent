@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.preprocessing import FeaturePreprocessor, SequencePreprocessor
+from src.consumers.preprocessing import FeaturePreprocessor, SequencePreprocessor
 
 
 def test_sequence_train_only_fit_extreme_heldout_and_mask(config, tmp_path):

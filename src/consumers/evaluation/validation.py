@@ -8,10 +8,10 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from src.training.config import load_training_config
-from src.training.datasets import PreparedDataStore
-from src.training.experiment_tracker import read_json, write_json
-from src.training.train_neural import load_network
+from src.consumers.training.config import load_training_config
+from src.consumers.training.datasets import PreparedDataStore
+from src.consumers.training.experiment_tracker import read_json, write_json
+from src.consumers.training.train_neural import load_network
 from .evaluator import combine_predictions, locate_run
 from .metrics import classification_metrics, validate_scores
 from .thresholds import select_threshold
