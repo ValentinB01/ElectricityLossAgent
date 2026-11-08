@@ -9,6 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 import src.agent.tools  # Ensure all 15 tools are registered
 from src.agent.actions import ActionGate, action_gate as default_gate
 from src.agent.config import AgentConfig, load_agent_config

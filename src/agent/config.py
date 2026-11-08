@@ -3,6 +3,12 @@ from typing import Dict, Literal
 import yaml
 from pydantic import BaseModel, Field
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 
 class LimitsConfig(BaseModel):
     max_iterations: int = Field(default=6, ge=1)

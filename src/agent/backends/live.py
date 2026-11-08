@@ -153,11 +153,11 @@ class LiveBackend:
             self._fixture_backend._task_overrides[task_id] = override
         return res
 
-    def handle_create_work_orders(self, tool_name: str, args: Dict[str, Any]) -> Any:
+    def handle_create_work_orders(self, tool_name: str, args: Dict[str, Any], store: Optional[Any] = None) -> Any:
         """Work orders live adapter (contract §2.13)."""
         from src.agent.actions import generate_work_orders
-        schedule_id = args.get("schedule_id", "sched-default")
-        return generate_work_orders(schedule_id=schedule_id)
+        schedule_id = args.get("schedule_id") or "sched-active-001"
+        return generate_work_orders(schedule_id=schedule_id, store=store)
 
     def handle_send_alert(self, tool_name: str, args: Dict[str, Any]) -> Any:
         """Alert dispatch live adapter (contract §2.14)."""

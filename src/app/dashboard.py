@@ -18,6 +18,12 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from src.app.client import AgentClient, AgentError  # noqa: E402
 
 SITES = {"fantanele": ("Fântânele", "FAN-"), "calugareni": ("Călugăreni", "CAL-")}

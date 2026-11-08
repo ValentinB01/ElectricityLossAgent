@@ -143,16 +143,40 @@
         "theft_probability": 0.15,
         "signal_type": "faulty_meter",
         "monthly_actual_kwh": [
-          {"month": "2026-07", "kwh": 360.0},
-          {"month": "2026-08", "kwh": 375.0},
-          {"month": "2026-09", "kwh": 12.0},
-          {"month": "2026-10", "kwh": 0.0}
+          {
+            "month": "2026-07",
+            "kwh": 360.0
+          },
+          {
+            "month": "2026-08",
+            "kwh": 375.0
+          },
+          {
+            "month": "2026-09",
+            "kwh": 12.0
+          },
+          {
+            "month": "2026-10",
+            "kwh": 0.0
+          }
         ],
         "monthly_expected_kwh": [
-          {"month": "2026-07", "kwh": 355.0},
-          {"month": "2026-08", "kwh": 370.0},
-          {"month": "2026-09", "kwh": 365.0},
-          {"month": "2026-10", "kwh": 380.0}
+          {
+            "month": "2026-07",
+            "kwh": 355.0
+          },
+          {
+            "month": "2026-08",
+            "kwh": 370.0
+          },
+          {
+            "month": "2026-09",
+            "kwh": 365.0
+          },
+          {
+            "month": "2026-10",
+            "kwh": 380.0
+          }
         ],
         "peer_comparison": {
           "peer_group_name": "Rural Rezidențial Giurgiu",
@@ -197,16 +221,40 @@
         "theft_probability": 0.88,
         "signal_type": "theft",
         "monthly_actual_kwh": [
-          {"month": "2026-07", "kwh": 180.0},
-          {"month": "2026-08", "kwh": 170.0},
-          {"month": "2026-09", "kwh": 130.0},
-          {"month": "2026-10", "kwh": 130.0}
+          {
+            "month": "2026-07",
+            "kwh": 180.0
+          },
+          {
+            "month": "2026-08",
+            "kwh": 170.0
+          },
+          {
+            "month": "2026-09",
+            "kwh": 130.0
+          },
+          {
+            "month": "2026-10",
+            "kwh": 130.0
+          }
         ],
         "monthly_expected_kwh": [
-          {"month": "2026-07", "kwh": 390.0},
-          {"month": "2026-08", "kwh": 410.0},
-          {"month": "2026-09", "kwh": 380.0},
-          {"month": "2026-10", "kwh": 420.0}
+          {
+            "month": "2026-07",
+            "kwh": 390.0
+          },
+          {
+            "month": "2026-08",
+            "kwh": 410.0
+          },
+          {
+            "month": "2026-09",
+            "kwh": 380.0
+          },
+          {
+            "month": "2026-10",
+            "kwh": 420.0
+          }
         ],
         "peer_comparison": {
           "peer_group_name": "Urban Constanța Clasa B",
@@ -240,7 +288,374 @@
         "forecast_run": "2026-11-08T00:00:00Z",
         "created_at": "2026-11-08T00:05:00Z"
       }
+    },
+    "T09-drone-001": {
+      "item_id": "T09-drone-001",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "T09-drone-001",
+        "asset_id": "FAN-T09",
+        "date": "2026-11-11",
+        "crew": "crew-1",
+        "cost_breakdown_mwh": {
+          "downtime": 0.0,
+          "waiting": 1.8,
+          "risk": 0.0,
+          "total": 1.8
+        },
+        "cost_breakdown_ron": {
+          "downtime": 0.0,
+          "waiting": 810.0,
+          "risk": 0.0,
+          "total": 810.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-10",
+            "total_mwh": 1.2,
+            "total_ron": 540.0,
+            "why_not": "echipa 1 alocată prioritar la reparație rulment FAN-T05"
+          }
+        ],
+        "trace": {
+          "m2_cause": "icing",
+          "m2_proba": 0.6,
+          "m2_loss_mwh_day": 0.6,
+          "confidence": 0.55,
+          "low_confidence": true,
+          "recommended_action": "inspection",
+          "requires_outage": false
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-t09-drone-001",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "FAN-T09": {
+      "item_id": "FAN-T09",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "T09-drone-001",
+        "asset_id": "FAN-T09",
+        "date": "2026-11-11",
+        "crew": "crew-1",
+        "cost_breakdown_mwh": {
+          "downtime": 0.0,
+          "waiting": 1.8,
+          "risk": 0.0,
+          "total": 1.8
+        },
+        "cost_breakdown_ron": {
+          "downtime": 0.0,
+          "waiting": 810.0,
+          "risk": 0.0,
+          "total": 810.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-10",
+            "total_mwh": 1.2,
+            "total_ron": 540.0,
+            "why_not": "echipa 1 alocată prioritar la reparație rulment FAN-T05"
+          }
+        ],
+        "trace": {
+          "m2_cause": "icing",
+          "m2_proba": 0.6,
+          "m2_loss_mwh_day": 0.6,
+          "confidence": 0.55,
+          "low_confidence": true,
+          "recommended_action": "inspection",
+          "requires_outage": false
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-t09-drone-001",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "T05-bearing-001": {
+      "item_id": "T05-bearing-001",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "T05-bearing-001",
+        "asset_id": "FAN-T05",
+        "date": "2026-11-10",
+        "crew": "crew-1",
+        "cost_breakdown_mwh": {
+          "downtime": 4.8,
+          "waiting": 1.0,
+          "risk": 0.0,
+          "total": 5.8
+        },
+        "cost_breakdown_ron": {
+          "downtime": 2160.0,
+          "waiting": 450.0,
+          "risk": 0.0,
+          "total": 2610.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-11",
+            "total_mwh": 8.2,
+            "total_ron": 3690.0,
+            "why_not": "vânt puternic: 7.2 MWh pierdere prin oprire"
+          }
+        ],
+        "trace": {
+          "m2_cause": "bearing_wear",
+          "m2_proba": 0.78,
+          "m2_loss_mwh_day": 0.5,
+          "urgency": "normal",
+          "m4_forecast_run": "2026-11-08T00:00:00Z"
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-t05-bearing-001",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "FAN-T05": {
+      "item_id": "FAN-T05",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "T05-bearing-001",
+        "asset_id": "FAN-T05",
+        "date": "2026-11-10",
+        "crew": "crew-1",
+        "cost_breakdown_mwh": {
+          "downtime": 4.8,
+          "waiting": 1.0,
+          "risk": 0.0,
+          "total": 5.8
+        },
+        "cost_breakdown_ron": {
+          "downtime": 2160.0,
+          "waiting": 450.0,
+          "risk": 0.0,
+          "total": 2610.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-11",
+            "total_mwh": 8.2,
+            "total_ron": 3690.0,
+            "why_not": "vânt puternic: 7.2 MWh pierdere prin oprire"
+          }
+        ],
+        "trace": {
+          "m2_cause": "bearing_wear",
+          "m2_proba": 0.78,
+          "m2_loss_mwh_day": 0.5,
+          "urgency": "normal",
+          "m4_forecast_run": "2026-11-08T00:00:00Z"
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-t05-bearing-001",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "T01-rev-001": {
+      "item_id": "T01-rev-001",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "T01-rev-001",
+        "asset_id": "FAN-T01",
+        "date": "2026-11-12",
+        "crew": "crew-2",
+        "cost_breakdown_mwh": {
+          "downtime": 2.1,
+          "waiting": 0.0,
+          "risk": 0.0,
+          "total": 2.1
+        },
+        "cost_breakdown_ron": {
+          "downtime": 945.0,
+          "waiting": 0.0,
+          "risk": 0.0,
+          "total": 945.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-13",
+            "total_mwh": 3.8,
+            "total_ron": 1710.0,
+            "why_not": "echipa 2 deja alocată la verificări revizie semestrială"
+          }
+        ],
+        "trace": {
+          "job_type": "periodic_revision",
+          "urgency": "normal",
+          "due_date": "2026-11-12",
+          "m4_forecast_run": "2026-11-08T00:00:00Z"
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-t01-rev-001",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "FAN-T01": {
+      "item_id": "FAN-T01",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "T01-rev-001",
+        "asset_id": "FAN-T01",
+        "date": "2026-11-12",
+        "crew": "crew-2",
+        "cost_breakdown_mwh": {
+          "downtime": 2.1,
+          "waiting": 0.0,
+          "risk": 0.0,
+          "total": 2.1
+        },
+        "cost_breakdown_ron": {
+          "downtime": 945.0,
+          "waiting": 0.0,
+          "risk": 0.0,
+          "total": 945.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-13",
+            "total_mwh": 3.8,
+            "total_ron": 1710.0,
+            "why_not": "echipa 2 deja alocată la verificări revizie semestrială"
+          }
+        ],
+        "trace": {
+          "job_type": "periodic_revision",
+          "urgency": "normal",
+          "due_date": "2026-11-12",
+          "m4_forecast_run": "2026-11-08T00:00:00Z"
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-t01-rev-001",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "INV02-clean-001": {
+      "item_id": "INV02-clean-001",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "INV02-clean-001",
+        "asset_id": "CAL-INV02",
+        "date": "2026-11-10",
+        "crew": "crew-1",
+        "cost_breakdown_mwh": {
+          "downtime": 0.8,
+          "waiting": 0.4,
+          "risk": 0.0,
+          "total": 1.2
+        },
+        "cost_breakdown_ron": {
+          "downtime": 360.0,
+          "waiting": 180.0,
+          "risk": 0.0,
+          "total": 540.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-11",
+            "total_mwh": 1.6,
+            "total_ron": 720.0,
+            "why_not": "radiație solară mai ridicată la orele amiezii"
+          }
+        ],
+        "trace": {
+          "m2_cause": "soiling",
+          "m2_proba": 0.79,
+          "m2_loss_mwh_day": 0.8,
+          "m4_forecast_run": "2026-11-08T00:00:00Z"
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-inv02-clean-001",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "CAL-INV02": {
+      "item_id": "CAL-INV02",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "INV02-clean-001",
+        "asset_id": "CAL-INV02",
+        "date": "2026-11-10",
+        "crew": "crew-1",
+        "cost_breakdown_mwh": {
+          "downtime": 0.8,
+          "waiting": 0.4,
+          "risk": 0.0,
+          "total": 1.2
+        },
+        "cost_breakdown_ron": {
+          "downtime": 360.0,
+          "waiting": 180.0,
+          "risk": 0.0,
+          "total": 540.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-11",
+            "total_mwh": 1.6,
+            "total_ron": 720.0,
+            "why_not": "radiație solară mai ridicată la orele amiezii"
+          }
+        ],
+        "trace": {
+          "m2_cause": "soiling",
+          "m2_proba": 0.79,
+          "m2_loss_mwh_day": 0.8,
+          "m4_forecast_run": "2026-11-08T00:00:00Z"
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-inv02-clean-001",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
     }
   }
 }
-

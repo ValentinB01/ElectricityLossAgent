@@ -224,7 +224,7 @@ class FixtureBackend:
 
     def handle_create_work_orders(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
         data = _load_fixture(tool_name).copy()
-        raw_id = args.get("schedule_id", data.get("schedule_id"))
+        raw_id = args.get("schedule_id") or data.get("schedule_id") or "sched-active-001"
         # Security: sanitize schedule_id to prevent directory traversal
         safe_schedule_id = "".join(c for c in raw_id if c.isalnum() or c in ("-", "_"))
         if not safe_schedule_id:
