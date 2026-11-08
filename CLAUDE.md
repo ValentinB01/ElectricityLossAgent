@@ -161,24 +161,20 @@ boto3            # PVDAQ (optional)
 │   ├── decisions.md           # why we chose thresholds/parameters; error analysis
 │   └── img/
 ├── src/
+│   ├── common.py              # paths, seed, shared thresholds, chart style
 │   ├── data/
-│   │   ├── download.py        # all downloads (section 6)
-│   │   ├── wind_ingest.py     # Kelmarsh/HoT/CARE -> canonical schema
-│   │   ├── pv_ingest.py       # Kaggle/PVDAQ -> canonical schema
-│   │   └── weather.py         # Open-Meteo archive + forecast
-│   ├── features/
-│   │   └── build.py           # air density, turbulence, solar angle, etc.
+│   │   └── prepare.py         # downloads + preparation: Kelmarsh, Kaggle solar, Open-Meteo history
 │   ├── producers/
-│   │   ├── m1_expected.py     # expected production + baseline
-│   │   ├── m2_underperf.py    # performance index, CUSUM, cause classifier
-│   │   ├── m3_risk.py         # NBM on temperatures (CARE) or alarm prediction (HoT)
-│   │   └── m4_cost.py         # cost map from forecast
+│   │   ├── expected_power.py  # M1: expected production + baseline
+│   │   ├── underperformance.py # M2: performance index, CUSUM, cause classifier
+│   │   ├── failure_risk.py    # M3 (optional): NBM on temperatures (CARE) or alarm prediction (HoT)
+│   │   ├── downtime_cost.py   # M4: weather-only M1-W + cost map from forecast
+│   │   └── solar.py           # PV branch: M1, M2, M4 on the Kaggle data
 │   ├── consumers/             # C1, C2, inspection queue (see docs/design.md)
 │   ├── simulate/
 │   │   └── inject_faults.py   # labelled synthetic faults (wind + PV)
 │   ├── decision/
-│   │   ├── tasks.py           # dataclasses for jobs
-│   │   ├── optimizer.py       # greedy + (optional) CP-SAT
+│   │   ├── optimizer.py       # job dataclasses + greedy (optional CP-SAT)
 │   │   └── backtest.py        # replay of one year, 3 policies
 │   ├── agent/
 │   │   ├── tools.py           # functions exposed to the LLM
@@ -353,7 +349,7 @@ Each stage has **acceptance criteria**. Do not move on until they are met. Who o
 
 ## 9. Module specifications
 
-### 9.1 M1: expected production (`src/producers/m1_expected.py`)
+### 9.1 M1: expected production (`src/producers/expected_power.py`)
 
 **What it represents:** how much the equipment would produce right now if it had no problems.
 
@@ -412,7 +408,7 @@ All injections are **deterministic with a seed** and save labels (`asset_id, sta
 
 Inject **only into the test or backtest period** for evaluation. To train the cause classifier, inject separately into train. Each fault lasts between 3 and 30 days, at random.
 
-### 9.3 M2: underperformance (`src/producers/m2_underperf.py`)
+### 9.3 M2: underperformance (`src/producers/underperformance.py`)
 
 1. **Performance index** `PI = Σ P_real / Σ exp_p50` over a sliding 72-hour window, only on intervals where `exp_p50 > 10%` of rated.
 2. **Change detection:** CUSUM on `(P_real − exp_p50)/rated`, with the threshold chosen on validation to limit false alarms (e.g. ≤ 1 per turbine per month). Alternative: alarm if `P_real < exp_p10` in > X% of the intervals of the last 24 h.
@@ -429,7 +425,7 @@ Inject **only into the test or backtest period** for evaluation. To train the ca
 
 **Real-data validation:** at Hill of Towie, the AeroUp/TuneUp upgrades are real performance changes with known dates. Check whether M2 sees the change (in the positive direction) at those dates.
 
-### 9.4 M3: failure risk, optional (`src/producers/m3_risk.py`)
+### 9.4 M3: failure risk, optional (`src/producers/failure_risk.py`)
 
 **Option A, CARE to Compare (recommended):**
 
@@ -449,7 +445,7 @@ Inject **only into the test or backtest period** for evaluation. To train the ca
 
 **Output for the optimizer:** `p_fail(d)` for d = 1..14 days, **calibrated** (isotonic on validation).
 
-### 9.5 M4: downtime cost (`src/producers/m4_cost.py`)
+### 9.5 M4: downtime cost (`src/producers/downtime_cost.py`)
 
 1. Take the hourly Open-Meteo forecast for the park's coordinates (in the backtest: historical weather + noise, see 9.7).
 2. Extrapolate wind to hub height: `v_hub = v_ref * (h_hub/h_ref)**α`, with α = 0.143 as an assumption.
@@ -626,17 +622,19 @@ Rules:
 
 ## 13. Reproducibility
 
-`Makefile` (what each target does for users is described in `README.md` section 6):
+`Makefile` (what each target does for users is described in `README.md` section 6). Every module runs as `python -m src.<package>.<module>` from the repository root:
 
 ```make
-setup:     pip install -r requirements.txt
-data:      python -m src.data.download --mvp && python -m src.data.wind_ingest && python -m src.data.pv_ingest && python -m src.data.weather
-data-full: python -m src.data.download --all
-train:     python -m src.producers.m1_expected && python -m src.producers.m2_underperf
-eval:      python -m src.producers.m1_expected --eval && python -m src.producers.m2_underperf --eval && python -m src.decision.backtest
-agent:     uvicorn src.agent.api:app
-demo:      streamlit run src/app/dashboard.py
-test:      pytest tests/
+setup:      pip install -r requirements.txt
+data:       python -m src.data.prepare --year 2019 && python -m src.data.prepare --pv
+data-test:  python -m src.data.prepare --year 2020
+train:      --train on expected_power, underperformance, downtime_cost, solar
+eval:       --eval on the same four (validation) + python -m src.decision.backtest --dev
+eval-final: --eval --final on the same four + python -m src.decision.backtest --final
+plan:       python -m src.decision.optimizer --site fantanele calugareni
+test:       python -m pytest
+agent:      uvicorn src.agent.api:app        # when the agent exists
+demo:       streamlit run src/app/dashboard.py  # when the dashboard exists
 ```
 
 The README must also contain the error analysis (where M1/M2 go wrong, on which causes, what was tried) and what production would need from PPC.

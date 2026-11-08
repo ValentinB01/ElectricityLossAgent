@@ -4,7 +4,7 @@
 
 Project for **Smarthack XI 2026**, PPC theme *"24h to Power PPC: AI in energy, from data to action"*.
 
-> **Status:** planning stage, no code yet. This README describes the target system: the commands below and the files they use are created as the plan in [`docs/producers-plan.md`](docs/producers-plan.md) progresses.
+> **Status:** in progress, built one step at a time ([plan](docs/producers-plan.md)). The producers module runs end to end on wind and solar: data ([`src/data/prepare.py`](src/data/prepare.py)), expected production ([`expected_power.py`](src/producers/expected_power.py)), underperformance ([`underperformance.py`](src/producers/underperformance.py), [`inject_faults.py`](src/simulate/inject_faults.py)), downtime cost from the forecast ([`downtime_cost.py`](src/producers/downtime_cost.py)), the maintenance calendar ([`optimizer.py`](src/decision/optimizer.py), [`tests/`](tests/test_optimizer.py)), the one-year backtest ([`backtest.py`](src/decision/backtest.py)) and the solar branch ([`solar.py`](src/producers/solar.py)). This README still describes the target system; the consumers module, LLM agent and dashboard are not built yet.
 
 - **At producers** (wind turbines and PV parks): we estimate how much each piece of equipment should produce. We detect when it produces below normal and schedule revisions and checks in the windows with the lowest loss: low wind for turbines, little sun for panels.
 - **At consumers** (households): we estimate how much each household should consume. We detect anomalies in the monthly consumption series (possible theft or a faulty meter) and prioritise inspections.
@@ -104,16 +104,18 @@ Without an LLM API key, the application runs in **deterministic CLI mode**, with
 
 ## 4. Results
 
-> All figures below are generated with `make eval` and saved in `results/`. Fill in the table after running.
+> Producers rows: the 2020 test year, run once with every setting frozen (`make eval-final`). Results are written to `results/`, which stays local. Faults are synthetic, injected into real SCADA.
 
 | Component | Metric | Model | Baseline |
 |---|---|---|---|
-| M1 wind (Kelmarsh, test year) | MAE (% of rated) / 10–90% interval coverage | _TBD_ | _TBD_ |
-| M1 PV (Kaggle, last 7 days) | MAE (% of rated) | _TBD_ | _TBD_ |
-| M2 wind (injected faults) | detection % / delay (days) / false alarms per turbine-month / cause F1 | _TBD_ | _TBD_ |
+| M1 wind (Kelmarsh, 2020) | MAE (% of rated) / 10–90% interval coverage | 1.88% / 79.1% | binned power curve: 2.24% / – |
+| M1-W wind, weather only (Kelmarsh, 2020) | MAE (% of rated) / 10–90% interval coverage | 8.55% / 76.4% | binned curve on hub-height wind: 8.73% / – |
+| M1 PV (Kaggle, last 7 days) | MAE (% of rated) / 10–90% interval coverage | 2.60% / 68.6% | physical formula: 3.82% / – |
+| M2 PV (123 faults injected into the last 7 days) | detection % / false alarms per inverter-month / cause F1 | 74.8% / 0.79 / 0.64 | 72 h index < 0.95: 82.9% / 3.01 / – |
+| M2 wind (342 faults injected into 2020) | detection % / delay (days) / false alarms per turbine-month / cause F1 | 62.9% / 3.4 / 0.024 / 0.80 | 72 h index < 0.95: 63.2% / 4.9 / 0.735 / – |
 | M3 (CARE to Compare, farm A) | CARE score | _TBD_ | _TBD_ |
 | C2 consumers (monthly SGCC, test customers) | PR-AUC / precision in top K / kWh recovered in top K | _TBD_ | _TBD_ |
-| **Maintenance backtest (one year)** | total MWh lost | **agent:** _TBD_ | **repair immediately:** _TBD_ · **at revision:** _TBD_ |
+| **Maintenance backtest (Kelmarsh 2020, 3 fault sets)** | total MWh lost, perfect / noisy forecast | **agent:** 192 / 190 | **repair immediately:** 249 / 234 · **at revision:** 865 / 849 |
 
 Charts (power curves, confusion matrix, backtest) are in `results/figures/`.
 
@@ -175,15 +177,17 @@ make setup
 
 | Command | What it does |
 |---|---|
-| `make data` | Downloads the minimal set (Kelmarsh, Kaggle solar, SGCC, weather) and brings it to the common schema in `data/processed/` |
-| `make data-full` | Also downloads the optional sets (CARE to Compare, Hill of Towie, PVDAQ) |
-| `make train` | Trains M1, M2, C1, C2 (and M3 if the data exists) |
-| `make eval` | Evaluates all models against baselines and runs the backtest; writes `results/*.json` and the charts |
-| `make agent` | Starts the agent API (FastAPI) |
-| `make demo` | Starts the interface (Streamlit) |
-| `make test` | Runs the schema and optimizer tests |
+| `make data` | Downloads Kelmarsh 2019, the Kaggle solar data and Open-Meteo history, and prepares them in `data/` |
+| `make data-test` | Downloads Kelmarsh 2020, the test year |
+| `make train` | Trains M1, M2, the weather-only M1-W behind M4, and the solar models into `models/` |
+| `make eval` | Scores every model on validation against its baseline and runs the development backtest; writes `results/*.json` and the charts |
+| `make eval-final` | Reproduces the test-year results in section 4 (settings are frozen) |
+| `make plan` | Today's maintenance calendar for Fântânele and Călugăreni, from the live Open-Meteo forecast |
+| `make test` | Runs the optimizer tests |
 
-All numeric assumptions (wind limit for work, failure cost, job durations, crew capacity, energy price) are in `config/params.yaml`.
+Each script also runs on its own, e.g. `python -m src.producers.expected_power --help`. Coming with the consumers module and the agent: `make agent` (FastAPI) and `make demo` (Streamlit).
+
+Numeric assumptions (working wind limits, job durations, crew capacity, fault severities) are constants at the top of each module, each commented as an assumption with where the real value would come from.
 
 ---
 
@@ -191,17 +195,19 @@ All numeric assumptions (wind limit for work, failure cost, job durations, crew 
 
 | Path | Contents |
 |---|---|
-| `config/` | Numeric assumptions, site coordinates, LLM settings |
-| `src/data/`, `src/features/` | Downloads, ingestion, weather, feature building |
-| `src/producers/`, `src/consumers/` | The models of each module |
-| `src/simulate/` | Synthetic faults and attacks |
-| `src/decision/` | Optimizer and backtest |
-| `src/agent/`, `src/app/` | LLM tools, API and dashboard |
-| `results/` | JSON metrics, charts, generated work orders |
-| `docs/` | Design, plan, data notes, decisions and error analysis |
+| `src/common.py` | Paths, seed, shared thresholds, chart style |
+| `src/data/prepare.py` | Downloads and prepares Kelmarsh SCADA, the Kaggle solar data and Open-Meteo weather |
+| `src/producers/` | `expected_power.py` (M1), `underperformance.py` (M2), `downtime_cost.py` (M4, with the weather-only M1-W), `solar.py` (the same three for PV) |
+| `src/simulate/inject_faults.py` | Labelled synthetic faults, wind and PV |
+| `src/decision/` | `optimizer.py` (maintenance calendar), `backtest.py` (one year, three policies) |
+| `tests/` | Optimizer tests on hand-built cases |
+| `notebooks/explore_kelmarsh.ipynb` | Exploration of the 2019 data behind the modelling choices |
+| `docs/` | Design, plan, data notes |
+| `Makefile` | Every step, end to end (section 6) |
+| `results/` | JSON metrics and charts; local, regenerated by `make eval` |
 | `data/`, `models/` | Git-ignored; recreated by `make data` and `make train` |
 
-File-level layout: [`CLAUDE.md`](CLAUDE.md) section 5.
+Planned: `src/consumers/`, `src/agent/`, `src/app/`, and `config/` for the assumptions. Target layout: [`CLAUDE.md`](CLAUDE.md) section 5.
 
 ---
 
