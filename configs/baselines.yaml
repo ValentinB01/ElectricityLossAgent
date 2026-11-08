@@ -1,0 +1,12 @@
+# Simple reference models; no hyperparameter search and no fit on validation/test.
+logistic_regression:
+  C: 1.0
+  solver: lbfgs
+  max_iter: 3000
+  tol: 0.0001
+  random_state: 42
+decision_stump:
+  max_depth: 1
+  random_state: 42
+figure:
+  dpi: 300
