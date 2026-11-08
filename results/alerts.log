@@ -8,3 +8,20 @@
 [WARNING] asset=FAN-T17 msg=Alert test
 [INFO] asset=FAN-T17 msg=Test alert
 [WARNING] asset=FAN-T17 msg=Alert test
+[INFO] asset=FAN-T17 msg=Test alert
+[WARNING] asset=FAN-T17 msg=Alert test
+[INFO] asset=FAN-T17 msg=Test alert
+[WARNING] asset=FAN-T17 msg=Alert test
+[INFO] asset=FAN-T17 msg=Test alert
+[WARNING] asset=FAN-T17 msg=Alert test
+[INFO] asset=FAN-T17 msg=Test alert
+[WARNING] asset=FAN-T17 msg=Alert test
+[2026-11-08T00:19:19.508996+00:00] [WARNING] asset=FAN-T17 msg=High temp test
+[2026-11-08T00:19:20.499838+00:00] [INFO] asset=FAN-T17 msg=Test alert
+[2026-11-08T00:19:20.847519+00:00] [WARNING] asset=FAN-T17 msg=Alert test
+[2026-11-08T00:20:12.252488+00:00] [WARNING] asset=FAN-T17 msg=High temp test
+[2026-11-08T00:20:14.275445+00:00] [INFO] asset=FAN-T17 msg=Test alert
+[2026-11-08T00:20:14.623889+00:00] [WARNING] asset=FAN-T17 msg=Alert test
+[2026-11-08T00:21:19.457017+00:00] [WARNING] asset=FAN-T17 msg=High temp test
+[2026-11-08T00:21:21.073425+00:00] [INFO] asset=FAN-T17 msg=Test alert
+[2026-11-08T00:21:21.410145+00:00] [WARNING] asset=FAN-T17 msg=Alert test

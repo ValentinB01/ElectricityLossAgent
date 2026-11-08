@@ -17,12 +17,12 @@
 
 - [x] 3.1 Implement `registry.py` (`@tool` decorator, effect class, input/output validation, provenance, `llm_view`, backend resolution from config) and `backends/fixture.py`; verify contract tests: bad asset id → `unknown_asset` with valid ids, past date → `invalid_date`, malformed backend output → `backend_contract_violation`
 - [x] 3.2 Implement the 15 tool wrappers in `src/agent/tools/` with `llm_view` reducers (cost map → cheapest workable window per asset/day; top-N lists); verify a test checks every numeric leaf in each `llm_view` exists in the full result
-- [ ] 3.3 Implement `store.py` (SQLite, WAL, parameterised queries, tables from design D14, secret-redaction filter); verify tests that tool calls and results persist across a reopen and that a fake `api_key` in an error is redacted
+- [x] 3.3 Implement `store.py` (SQLite, WAL, parameterised queries, tables from design D14, secret-redaction filter); verify tests that tool calls and results persist across a reopen and that a fake `api_key` in an error is redacted
 
 ## 4. Action gate, schedules and CLI
 
-- [ ] 4.1 Implement `actions.py`: pending action creation for `write` tools, args hash, TTL, confirm/reject/patch, execute-once, `needs_input` for field reports (effective confidence = min(LLM, rule checks) < 0.7), post-hooks (field report → what-if draft; household outcome → `labels`); verify `tests/test_agent_actions.py` covers double confirm, expiry, reject, args mismatch, needs_input→pending
-- [ ] 4.2 Implement schedule lifecycle (draft on every `optimize_maintenance`, `promote_schedule` swaps active→history atomically) and confine writes to `results/work_orders/` and `results/alerts.log`; verify tests that a draft never alters the active schedule and that promote is a single transaction
+- [x] 4.1 Implement `actions.py`: pending action creation for `write` tools, args hash, TTL, confirm/reject/patch, execute-once, `needs_input` for field reports (effective confidence = min(LLM, rule checks) < 0.7), post-hooks (field report → what-if draft; household outcome → `labels`); verify `tests/test_agent_actions.py` covers double confirm, expiry, reject, args mismatch, needs_input→pending
+- [x] 4.2 Implement schedule lifecycle (draft on every `optimize_maintenance`, `promote_schedule` swaps active→history atomically) and confine writes to `results/work_orders/` and `results/alerts.log`; verify tests that a draft never alters the active schedule and that promote is a single transaction
 - [ ] 4.3 Implement `cli.py` command router (grammar in design D9) and Romanian Jinja2 templates; verify golden-output tests in `tests/test_agent_cli.py` for every command on the fixture pack, including bad-argument usage messages and the `confirm`/`reject` flow
 
 ## 5. LLM orchestrator and grounding (E7)

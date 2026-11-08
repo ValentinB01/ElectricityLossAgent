@@ -1,7 +1,7 @@
 """Consumer tool wrappers and llm_view reducers."""
 
 from typing import Any, Dict
-from src.agent.backends.fixture import FixtureBackend
+from src.agent.backends.fixture import DEFAULT_FIXTURE_BACKEND
 from src.agent.registry import tool
 from src.agent.schemas.common import EffectClass
 from src.agent.schemas.consumers import (
@@ -13,7 +13,7 @@ from src.agent.schemas.consumers import (
     ScoreHouseholdsOutput,
 )
 
-_fixture_backend = FixtureBackend()
+_fixture_backend = DEFAULT_FIXTURE_BACKEND
 
 
 # 7. predict_expected_consumption

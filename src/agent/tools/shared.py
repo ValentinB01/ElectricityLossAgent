@@ -1,7 +1,7 @@
 """Shared tool wrappers and llm_view reducers."""
 
 from typing import Any, Dict
-from src.agent.backends.fixture import FixtureBackend
+from src.agent.backends.fixture import DEFAULT_FIXTURE_BACKEND
 from src.agent.registry import tool
 from src.agent.schemas.common import EffectClass
 from src.agent.schemas.shared import (
@@ -19,7 +19,7 @@ from src.agent.schemas.shared import (
     UpdateFromFieldReportOutput,
 )
 
-_fixture_backend = FixtureBackend()
+_fixture_backend = DEFAULT_FIXTURE_BACKEND
 
 
 # 10. loss_overview
@@ -184,9 +184,12 @@ def send_alert(args: Dict[str, Any], backend: str = "fixture") -> Any:
 def promote_schedule_llm_view(out: PromoteScheduleOutput) -> Dict[str, Any]:
     return {
         "promoted_id": out.promoted_id,
+        "previous_active_id": out.previous_active_id,
         "status": out.status,
         "total_mwh": out.total_mwh,
         "total_ron": out.total_ron,
+        "delta_mwh": out.delta_mwh,
+        "delta_ron": out.delta_ron,
     }
 
 

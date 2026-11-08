@@ -5,7 +5,7 @@ from datetime import date, datetime
 from typing import Any, Callable, Dict, List, Optional, Set, Type
 from pydantic import BaseModel, ValidationError
 
-from src.agent.backends.fixture import FixtureBackend
+from src.agent.backends.fixture import DEFAULT_FIXTURE_BACKEND, FixtureBackend
 from src.agent.config import load_agent_config
 from src.agent.schemas.common import EffectClass, ErrorCode, Provenance, StructuredError
 
@@ -44,8 +44,10 @@ class ToolRegistry:
 
     def __init__(self):
         self._tools: Dict[str, ToolDefinition] = {}
-        self._fixture_backend = FixtureBackend()
+        self._fixture_backend = DEFAULT_FIXTURE_BACKEND
         self._config = load_agent_config()
+        from src.agent.store import DEFAULT_STORE
+        self._store = DEFAULT_STORE
 
     def register(
         self,
@@ -75,9 +77,11 @@ class ToolRegistry:
 
             @wraps(fn)
             def wrapper(args: Optional[Dict[str, Any]] = None, **kwargs) -> Any:
+                bypass = kwargs.pop("bypass_gate", False)
+                session_id = kwargs.pop("session_id", None)
                 call_args = dict(args) if isinstance(args, dict) else {}
                 call_args.update(kwargs)
-                exec_res = self.execute(name, call_args)
+                exec_res = self.execute(name, call_args, bypass_gate=bypass, session_id=session_id)
                 if exec_res.is_error:
                     return exec_res.error
                 return exec_res.full_result
@@ -86,6 +90,10 @@ class ToolRegistry:
             return wrapper
 
         return decorator
+
+    def set_store(self, store: Any) -> None:
+        """Set or swap the active audit store (e.g. for isolated testing)."""
+        self._store = store
 
     def get_tool(self, name: str) -> Optional[ToolDefinition]:
         return self._tools.get(name)
@@ -196,24 +204,53 @@ class ToolRegistry:
                 )
         return None
 
-    def execute(self, tool_name: str, raw_args: Optional[Dict[str, Any]] = None) -> ToolExecutionResult:
+    def execute(
+        self,
+        tool_name: str,
+        raw_args: Optional[Dict[str, Any]] = None,
+        bypass_gate: bool = False,
+        session_id: Optional[str] = None,
+        store: Optional[Any] = None,
+    ) -> ToolExecutionResult:
         """Run the full dispatch pipeline for a tool call."""
+        import time
+        start_time = time.perf_counter()
+        active_store = store or self._store
         raw_args = raw_args or {}
         defn = self._tools.get(tool_name)
+
+        def _log_error(err: StructuredError, backend: str, effect: str = "read") -> ToolExecutionResult:
+            duration_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
+            err_code = err.code.value if hasattr(err.code, "value") else str(err.code)
+            try:
+                active_store.log_tool_call(
+                    session_id=session_id,
+                    tool=tool_name,
+                    effect=effect,
+                    args=raw_args,
+                    result_id=None,
+                    backend=backend,
+                    duration_ms=duration_ms,
+                    error_code=err_code,
+                )
+            except Exception:
+                pass
+            return ToolExecutionResult(
+                tool=tool_name,
+                full_result=err,
+                llm_view=err.model_dump(),
+                provenance=Provenance(tool=tool_name, backend=backend),
+                is_error=True,
+                error=err,
+            )
+
         if not defn:
             err = StructuredError(
                 code=ErrorCode.UNKNOWN_TOOL,
                 message=f"Tool '{tool_name}' is not registered in catalogue",
                 tool_name=tool_name,
             )
-            return ToolExecutionResult(
-                tool=tool_name,
-                full_result=err,
-                llm_view=err.model_dump(),
-                provenance=Provenance(tool=tool_name, backend="error"),
-                is_error=True,
-                error=err,
-            )
+            return _log_error(err, backend="error", effect="read")
 
         # 1. Validate inputs via Pydantic
         try:
@@ -225,41 +262,43 @@ class ToolRegistry:
                 message=f"Invalid input arguments for tool '{tool_name}': {str(e)}",
                 details=e.errors(),
             )
-            return ToolExecutionResult(
-                tool=tool_name,
-                full_result=err,
-                llm_view=err.model_dump(),
-                provenance=Provenance(tool=tool_name, backend="error"),
-                is_error=True,
-                error=err,
-            )
+            return _log_error(err, backend="error", effect=defn.effect.value)
 
         # 2. Check asset ids
         asset_err = self._validate_assets(input_dict, tool_name)
         if asset_err:
-            return ToolExecutionResult(
-                tool=tool_name,
-                full_result=asset_err,
-                llm_view=asset_err.model_dump(),
-                provenance=Provenance(tool=tool_name, backend="validation"),
-                is_error=True,
-                error=asset_err,
-            )
+            return _log_error(asset_err, backend="validation", effect=defn.effect.value)
 
         # 3. Check dates
         as_of_str = input_dict.get("as_of") or self._config.as_of
         date_err = self._validate_dates(input_dict, as_of_str)
         if date_err:
+            return _log_error(date_err, backend="validation", effect=defn.effect.value)
+
+        # 4. Action gate: Intercept write tools unless confirmation has bypassed the gate
+        if defn.effect == EffectClass.WRITE and not bypass_gate:
+            from src.agent.actions import action_gate
+            pending_action = action_gate.create_pending_action(tool_name, input_dict, session_id=session_id)
+            duration_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
+            active_store.log_tool_call(
+                session_id=session_id,
+                tool=tool_name,
+                effect="write",
+                args=input_dict,
+                result_id=pending_action["action_id"],
+                backend="action_gate",
+                duration_ms=duration_ms,
+            )
             return ToolExecutionResult(
                 tool=tool_name,
-                full_result=date_err,
-                llm_view=date_err.model_dump(),
-                provenance=Provenance(tool=tool_name, backend="validation"),
-                is_error=True,
-                error=date_err,
+                full_result=pending_action,
+                llm_view=pending_action,
+                provenance=Provenance(tool=tool_name, backend="action_gate"),
+                is_error=False,
+                error=None,
             )
 
-        # 4. Resolve backend (fixture or live)
+        # 5. Resolve backend (fixture or live)
         backend_label = self._config.backends.get(tool_name, "fixture")
 
         # 5. Call backend
@@ -273,25 +312,11 @@ class ToolRegistry:
                 code=ErrorCode.BACKEND_CONTRACT_VIOLATION,
                 message=f"Exception during backend call for '{tool_name}': {str(ex)}",
             )
-            return ToolExecutionResult(
-                tool=tool_name,
-                full_result=err,
-                llm_view=err.model_dump(),
-                provenance=Provenance(tool=tool_name, backend=backend_label),
-                is_error=True,
-                error=err,
-            )
+            return _log_error(err, backend=backend_label, effect=defn.effect.value)
 
         # Check if backend returned a StructuredError directly
         if isinstance(raw_output, StructuredError):
-            return ToolExecutionResult(
-                tool=tool_name,
-                full_result=raw_output,
-                llm_view=raw_output.model_dump(),
-                provenance=Provenance(tool=tool_name, backend=backend_label),
-                is_error=True,
-                error=raw_output,
-            )
+            return _log_error(raw_output, backend=backend_label, effect=defn.effect.value)
 
         # 6. Validate output against output schema
         try:
@@ -309,14 +334,7 @@ class ToolRegistry:
                 message=f"Backend output violated output schema for tool '{tool_name}': {str(e)}",
                 details=e.errors(),
             )
-            return ToolExecutionResult(
-                tool=tool_name,
-                full_result=err,
-                llm_view=err.model_dump(),
-                provenance=Provenance(tool=tool_name, backend=backend_label),
-                is_error=True,
-                error=err,
-            )
+            return _log_error(err, backend=backend_label, effect=defn.effect.value)
 
         # 7. Ensure provenance is attached and set
         if hasattr(validated_output, "provenance") and validated_output.provenance:
@@ -333,6 +351,26 @@ class ToolRegistry:
             llm_v = defn.llm_view(validated_output)
         else:
             llm_v = validated_output.model_dump()
+
+        # Store result and log call in audit store
+        duration_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
+        dumped_payload = validated_output.model_dump() if hasattr(validated_output, "model_dump") else validated_output
+        dumped_prov = prov.model_dump() if hasattr(prov, "model_dump") else prov
+        active_store.store_tool_result(
+            result_id=prov.result_id,
+            payload=dumped_payload,
+            llm_view=llm_v,
+            provenance=dumped_prov,
+        )
+        active_store.log_tool_call(
+            session_id=session_id,
+            tool=tool_name,
+            effect=defn.effect.value,
+            args=input_dict,
+            result_id=prov.result_id,
+            backend=backend_label,
+            duration_ms=duration_ms,
+        )
 
         return ToolExecutionResult(
             tool=tool_name,

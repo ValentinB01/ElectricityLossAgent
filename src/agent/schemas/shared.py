@@ -200,5 +200,7 @@ class PromoteScheduleOutput(BaseModel):
     status: str = Field(default="active")
     total_mwh: float
     total_ron: float
+    delta_mwh: float = 0.0
+    delta_ron: float = 0.0
     provenance: Provenance
 

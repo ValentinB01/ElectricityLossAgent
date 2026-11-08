@@ -2,9 +2,10 @@
 
 from collections import defaultdict
 from typing import Any, Dict, List
-from src.agent.backends.fixture import FixtureBackend
+from src.agent.backends.fixture import DEFAULT_FIXTURE_BACKEND
 from src.agent.registry import tool
 from src.agent.schemas.common import EffectClass
+from src.agent.store import DEFAULT_STORE
 from src.agent.schemas.producers import (
     ComputeCostMapInput,
     ComputeCostMapOutput,
@@ -20,7 +21,7 @@ from src.agent.schemas.producers import (
     PredictExpectedProductionOutput,
 )
 
-_fixture_backend = FixtureBackend()
+_fixture_backend = DEFAULT_FIXTURE_BACKEND
 
 
 # 1. get_weather_forecast
@@ -222,5 +223,28 @@ def optimize_maintenance_llm_view(out: OptimizeMaintenanceOutput) -> Dict[str, A
     llm_view=optimize_maintenance_llm_view,
 )
 def optimize_maintenance(args: Dict[str, Any], backend: str = "fixture") -> Any:
-    return _fixture_backend.call("optimize_maintenance", args)
+    res = _fixture_backend.call("optimize_maintenance", args)
+    if isinstance(res, dict) and "schedule_id" in res:
+        # Seed baseline active schedule if no active schedule exists in store
+        if not DEFAULT_STORE.get_active_schedule():
+            DEFAULT_STORE.store_schedule(
+                schedule_id="sched-active-001",
+                status="active",
+                payload=res,
+                total_mwh=float(res.get("active_total_mwh", res.get("total_mwh", 16.1))),
+                total_ron=float(res.get("active_total_ron", res.get("total_ron", 7245.0))),
+                parent_id=None,
+            )
+        # Store draft schedule linked to parent active schedule
+        parent = DEFAULT_STORE.get_active_schedule()
+        parent_id = parent["id"] if parent else "sched-active-001"
+        DEFAULT_STORE.store_schedule(
+            schedule_id=res["schedule_id"],
+            status="draft",
+            payload=res,
+            total_mwh=float(res.get("total_mwh", 0.0)),
+            total_ron=float(res.get("total_ron", 0.0)),
+            parent_id=parent_id,
+        )
+    return res
 

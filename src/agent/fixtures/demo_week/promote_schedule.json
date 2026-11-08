@@ -4,6 +4,8 @@
   "status": "active",
   "total_mwh": 16.1,
   "total_ron": 7245.0,
+  "delta_mwh": 0.0,
+  "delta_ron": 0.0,
   "provenance": {
     "result_id": "res-prom-001",
     "tool": "promote_schedule",

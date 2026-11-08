@@ -1,5 +1,7 @@
 """Fixture backend for agent tools: serves versioned demo data from src/agent/fixtures/demo_week/."""
 
+import copy
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any, Dict
@@ -21,6 +23,7 @@ class FixtureBackend:
 
     def __init__(self, fixture_dir: Path = FIXTURE_DIR):
         self.fixture_dir = fixture_dir
+        self._task_overrides: Dict[str, Dict[str, Any]] = {}
 
     def call(self, tool_name: str, args: Dict[str, Any]) -> Any:
         handler = getattr(self, f"handle_{tool_name}", self.handle_default)
@@ -72,7 +75,12 @@ class FixtureBackend:
         return data
 
     def handle_list_tasks(self, tool_name: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        return _load_fixture(tool_name)
+        data = copy.deepcopy(_load_fixture(tool_name))
+        for task in data.get("tasks", []):
+            tid = task.get("task_id")
+            if tid in self._task_overrides:
+                task.update(self._task_overrides[tid])
+        return data
 
     def handle_optimize_maintenance(self, tool_name: str, args: Dict[str, Any]) -> Any:
         data = _load_fixture(tool_name)
@@ -192,6 +200,14 @@ class FixtureBackend:
         effective_confidence = min(confidence, rule_score)
         needs_input = effective_confidence < 0.7
 
+        if rule_ok and task_id:
+            override = {"status": status, "confidence": confidence}
+            if defer_days is not None:
+                override["defer_days"] = defer_days
+            if new_finding:
+                override["new_finding"] = new_finding
+            self._task_overrides[task_id] = override
+
         data.update({
             "task_id": task_id,
             "status": status,
@@ -243,8 +259,9 @@ class FixtureBackend:
         out_dir = Path("results")
         out_dir.mkdir(parents=True, exist_ok=True)
         log_file = out_dir / "alerts.log"
+        now_iso = datetime.now(timezone.utc).isoformat()
         with open(log_file, "a", encoding="utf-8") as f:
-            f.write(f"[{level.upper()}] asset={asset_id} msg={message}\n")
+            f.write(f"[{now_iso}] [{level.upper()}] asset={asset_id} msg={message}\n")
 
         data.update({
             "level": level,
@@ -259,5 +276,25 @@ class FixtureBackend:
         draft_id = args.get("draft_id", "sched-draft-base")
         data["promoted_id"] = draft_id
         data["status"] = "active"
+        from src.agent.store import DEFAULT_STORE
+        active = DEFAULT_STORE.get_active_schedule()
+        draft = DEFAULT_STORE.get_schedule(draft_id)
+        if draft:
+            data["total_mwh"] = draft["total_mwh"]
+            data["total_ron"] = draft["total_ron"]
+        if active and active.get("id") != draft_id:
+            data["previous_active_id"] = active["id"]
+            if draft:
+                data["delta_mwh"] = round(draft["total_mwh"] - active["total_mwh"], 2)
+                data["delta_ron"] = round(draft["total_ron"] - active["total_ron"], 2)
+            else:
+                data["delta_mwh"] = round(data.get("total_mwh", 16.1) - active["total_mwh"], 2)
+                data["delta_ron"] = round(data.get("total_ron", 7245.0) - active["total_ron"], 2)
+        else:
+            data.setdefault("delta_mwh", 0.0)
+            data.setdefault("delta_ron", 0.0)
         return data
+
+
+DEFAULT_FIXTURE_BACKEND = FixtureBackend()
 

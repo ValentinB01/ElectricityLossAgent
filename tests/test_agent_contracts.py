@@ -215,14 +215,14 @@ def test_unsupported_scenario_in_optimize():
 
 def test_side_effects_confined_to_results_dir():
     """Verify that write tools only create or touch files under results/."""
-    wo_res = registry.execute("create_work_orders", {"schedule_id": "sched-test-01"})
+    wo_res = registry.execute("create_work_orders", {"schedule_id": "sched-test-01"}, bypass_gate=True)
     assert not wo_res.is_error
     for path_str in wo_res.full_result.created_files:
         p = Path(path_str)
         assert str(p).replace("\\", "/").startswith("results/"), f"File outside results/: {path_str}"
         assert p.exists()
 
-    alert_res = registry.execute("send_alert", {"level": "info", "message": "Test alert", "asset_id": "FAN-T17"})
+    alert_res = registry.execute("send_alert", {"level": "info", "message": "Test alert", "asset_id": "FAN-T17"}, bypass_gate=True)
     assert not alert_res.is_error
     assert alert_res.full_result.logged_to.replace("\\", "/").startswith("results/")
     assert Path(alert_res.full_result.logged_to).exists()
@@ -249,7 +249,7 @@ def test_every_numeric_leaf_in_llm_view_exists_in_full_result():
     }
 
     for tool_name, args in default_args.items():
-        res = registry.execute(tool_name, args)
+        res = registry.execute(tool_name, args, bypass_gate=True)
         assert not res.is_error, f"Tool {tool_name} failed execution: {res.error}"
 
         full_dump = res.full_result.model_dump()
@@ -360,7 +360,7 @@ def test_monthly_loss_overview():
 
 def test_create_work_orders_sanitizes_path_traversal():
     """Verify that path traversal in schedule_id is sanitized and confined to results/work_orders/."""
-    res = registry.execute("create_work_orders", {"schedule_id": "../../malicious_name"})
+    res = registry.execute("create_work_orders", {"schedule_id": "../../malicious_name"}, bypass_gate=True)
     assert not res.is_error
     for path_str in res.full_result.created_files:
         p = Path(path_str)
