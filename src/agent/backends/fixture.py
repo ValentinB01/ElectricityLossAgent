@@ -98,13 +98,15 @@ class FixtureBackend:
         thursday_tokens = {"2026-11-12", "thursday", "joi"}
         if isinstance(unavail, list):
             for u in unavail:
-                if isinstance(u, dict) and u.get("crew") == "crew-2":
+                if isinstance(u, dict) and (u.get("crew") in ("crew-2", "crew_2") or u.get("crew_id") in ("crew-2", "crew_2")):
                     d_str = str(u.get("date", u.get("day", ""))).lower()
                     if any(tok in d_str for tok in thursday_tokens):
                         crew_off_thursday = True
                 elif isinstance(u, str) and any(tok in u.lower() for tok in thursday_tokens):
                     crew_off_thursday = True
-        elif isinstance(constraints.get("crew"), str) and constraints.get("crew") == "crew-2":
+        
+        crew_key = constraints.get("crew") or constraints.get("crew_id")
+        if isinstance(crew_key, str) and crew_key in ("crew-2", "crew_2"):
             d_str = str(constraints.get("date", constraints.get("day", ""))).lower()
             if any(tok in d_str for tok in thursday_tokens):
                 crew_off_thursday = True

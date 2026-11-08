@@ -263,6 +263,24 @@ class AuditStore:
                 "provenance": json.loads(row["provenance_json"]),
             }
 
+    def get_tool_calls(self, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retrieve tool calls from the audit store, optionally filtered by session_id."""
+        query = "SELECT * FROM tool_calls"
+        params: List[Any] = []
+        if session_id:
+            query += " WHERE session_id = ?"
+            params.append(session_id)
+        query += " ORDER BY created_at ASC"
+
+        with self._get_connection() as conn:
+            rows = conn.execute(query, tuple(params)).fetchall()
+            calls = []
+            for r in rows:
+                item = dict(r)
+                item["args"] = json.loads(item["args_json"])
+                calls.append(item)
+            return calls
+
     # --- Pending Actions ---
 
     def create_pending_action(

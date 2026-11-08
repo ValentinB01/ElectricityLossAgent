@@ -64,6 +64,9 @@ class AgentCLI:
             if cmd in self.registry._tools:
                 output = self._handle_direct_tool(cmd, args)
             else:
+                mapped = self._map_natural_query(raw_cmd)
+                if mapped:
+                    return self.execute(mapped, banner=banner)
                 output = render_template(
                     "error",
                     command=cmd,
@@ -85,6 +88,27 @@ class AgentCLI:
             output = f"{DETERMINISTIC_BANNER}\n\n{output}"
 
         return output
+
+    def _map_natural_query(self, text: str) -> Optional[str]:
+        """Heuristic mapping of common Romanian natural language queries to CLI commands."""
+        t = text.lower()
+        if "ce facem" in t or "ce avem de facut" in t:
+            if "calugareni" in t or "călugăreni" in t:
+                return "plan calugareni"
+            return "plan fantanele"
+        if "de ce" in t:
+            if "hh" in t or "gospodar" in t:
+                return "explain HH-FAULTY-01"
+            return "explain T17-pitch-001"
+        if "echip" in t and ("lips" in t or "joi" in t):
+            return "crew-off crew-2 2026-11-12"
+        if "pierder" in t:
+            return "losses"
+        if "inspec" in t:
+            return "inspections"
+        if "subperforman" in t:
+            return "underperf fantanele"
+        return None
 
     # --- Command Handlers ---
 

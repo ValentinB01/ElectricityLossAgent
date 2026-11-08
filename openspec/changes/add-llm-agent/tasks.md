@@ -27,9 +27,9 @@
 
 ## 5. LLM orchestrator and grounding (E7)
 
-- [ ] 5.1 Implement `grounding.py` (Romanian number parser, id/date/user-number exemptions, small-count rule, tolerance by displayed precision, kWh↔MWh and fraction↔% conversions); verify `tests/test_agent_grounding.py` covers `7,6`, `1.250`, `12%`, `FAN-T17`, `2026-11-12`, and a deliberately ungrounded value
-- [ ] 5.2 Implement `llm_agent.py`: LiteLLM adapter (temperature 0, parallel tool calls), context assembly (design D10), system prompt in `prompts/system_ro.md`, dispatch via registry, write→pending result, iteration/tool/timeout/token limits with partial answer, one grounding retry then warning, `{{table:...}}` placeholders, provider-failure → deterministic suggestion; verify `tests/test_agent_scenarios.py` replays the 8 demo scenarios with a scripted fake LLM and asserts tool sequence, pending actions and grounding outcome
-- [ ] 5.3 Implement mode selection (no key → deterministic) and the injection guard (untrusted text never reaches a confirm path); verify a scenario test where a field report containing an instruction to send alerts yields no alert and only a parsed pending field report
+- [x] 5.1 Implement `grounding.py` (Romanian number parser, id/date/user-number exemptions, small-count rule, tolerance by displayed precision, kWh↔MWh and fraction↔% conversions); verify `tests/test_agent_grounding.py` covers `7,6`, `1.250`, `12%`, `FAN-T17`, `2026-11-12`, and a deliberately ungrounded value
+- [x] 5.2 Implement `llm_agent.py`: LiteLLM adapter (temperature 0, parallel tool calls), context assembly (design D10), system prompt in `prompts/system_ro.md`, dispatch via registry, write→pending result, iteration/tool/timeout/token limits with partial answer, one grounding retry then warning, `{{table:...}}` placeholders, provider-failure → deterministic suggestion; verify `tests/test_agent_scenarios.py` replays the 8 demo scenarios with a scripted fake LLM and asserts tool sequence, pending actions and grounding outcome
+- [x] 5.3 Implement mode selection (no key → deterministic) and the injection guard (untrusted text never reaches a confirm path); verify a scenario test where a field report containing an instruction to send alerts yields no alert and only a parsed pending field report
 
 ## 6. API (E7)
 
