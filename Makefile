@@ -53,7 +53,7 @@ agent:
 	$(PYTHON) -m uvicorn src.agent.api:app --host 127.0.0.1 --port 8000
 
 eval-agent:
-	$(PYTHON) -m pytest tests/test_agent_scenarios.py
+	$(PYTHON) -m src.agent.eval
 
 demo:
 	$(PYTHON) -m streamlit run src/app/dashboard.py

@@ -3,6 +3,7 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Optional
 from src.agent.backends.fixture import DEFAULT_FIXTURE_BACKEND
+from src.agent.backends.live import DEFAULT_LIVE_BACKEND
 from src.agent.registry import tool
 from src.agent.schemas.common import EffectClass
 from src.agent.store import DEFAULT_STORE
@@ -22,6 +23,7 @@ from src.agent.schemas.producers import (
 )
 
 _fixture_backend = DEFAULT_FIXTURE_BACKEND
+_live_backend = DEFAULT_LIVE_BACKEND
 
 
 # 1. get_weather_forecast
@@ -54,6 +56,8 @@ def weather_forecast_llm_view(out: GetWeatherForecastOutput) -> Dict[str, Any]:
     llm_view=weather_forecast_llm_view,
 )
 def get_weather_forecast(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("get_weather_forecast", args)
     return _fixture_backend.call("get_weather_forecast", args)
 
 
@@ -82,6 +86,8 @@ def expected_production_llm_view(out: PredictExpectedProductionOutput) -> Dict[s
     llm_view=expected_production_llm_view,
 )
 def predict_expected_production(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("predict_expected_production", args)
     return _fixture_backend.call("predict_expected_production", args)
 
 
@@ -113,6 +119,8 @@ def underperformance_llm_view(out: DetectUnderperformanceOutput) -> Dict[str, An
     llm_view=underperformance_llm_view,
 )
 def detect_underperformance(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("detect_underperformance", args)
     return _fixture_backend.call("detect_underperformance", args)
 
 
@@ -154,6 +162,8 @@ def cost_map_llm_view(out: ComputeCostMapOutput) -> Dict[str, Any]:
     llm_view=cost_map_llm_view,
 )
 def compute_cost_map(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("compute_cost_map", args)
     return _fixture_backend.call("compute_cost_map", args)
 
 
@@ -184,6 +194,8 @@ def list_tasks_llm_view(out: ListTasksOutput) -> Dict[str, Any]:
     llm_view=list_tasks_llm_view,
 )
 def list_tasks(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("list_tasks", args)
     return _fixture_backend.call("list_tasks", args)
 
 
@@ -224,7 +236,10 @@ def optimize_maintenance_llm_view(out: OptimizeMaintenanceOutput) -> Dict[str, A
 )
 def optimize_maintenance(args: Dict[str, Any], backend: str = "fixture", store: Optional[Any] = None) -> Any:
     target_store = store or DEFAULT_STORE
-    res = _fixture_backend.call("optimize_maintenance", args)
+    if backend == "live":
+        res = _live_backend.call("optimize_maintenance", args, store=target_store)
+    else:
+        res = _fixture_backend.call("optimize_maintenance", args)
     if isinstance(res, dict) and "schedule_id" in res:
         # Seed baseline active schedule if no active schedule exists in store
         if not target_store.get_active_schedule():

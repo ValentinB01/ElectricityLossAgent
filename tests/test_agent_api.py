@@ -87,7 +87,7 @@ def test_get_health(test_client):
     assert data["stale_forecast"] is False
     assert isinstance(data["backends"], dict)
     assert len(data["backends"]) >= 15
-    assert data["backends"]["get_weather_forecast"] == "fixture"
+    assert data["backends"]["get_weather_forecast"] in ("fixture", "live")
 
 
 # ==============================================================================

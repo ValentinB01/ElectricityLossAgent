@@ -2,6 +2,7 @@
 
 from typing import Any, Dict
 from src.agent.backends.fixture import DEFAULT_FIXTURE_BACKEND
+from src.agent.backends.live import DEFAULT_LIVE_BACKEND
 from src.agent.registry import tool
 from src.agent.schemas.common import EffectClass
 from src.agent.schemas.shared import (
@@ -20,6 +21,7 @@ from src.agent.schemas.shared import (
 )
 
 _fixture_backend = DEFAULT_FIXTURE_BACKEND
+_live_backend = DEFAULT_LIVE_BACKEND
 
 
 # 10. loss_overview
@@ -50,6 +52,8 @@ def loss_overview_llm_view(out: LossOverviewOutput) -> Dict[str, Any]:
     llm_view=loss_overview_llm_view,
 )
 def loss_overview(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("loss_overview", args)
     return _fixture_backend.call("loss_overview", args)
 
 
@@ -108,6 +112,8 @@ def explain_llm_view(out: ExplainOutput) -> Dict[str, Any]:
     llm_view=explain_llm_view,
 )
 def explain(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("explain", args)
     return _fixture_backend.call("explain", args)
 
 
@@ -134,6 +140,8 @@ def field_report_llm_view(out: UpdateFromFieldReportOutput) -> Dict[str, Any]:
     llm_view=field_report_llm_view,
 )
 def update_from_field_report(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("update_from_field_report", args)
     return _fixture_backend.call("update_from_field_report", args)
 
 
@@ -155,6 +163,8 @@ def create_work_orders_llm_view(out: CreateWorkOrdersOutput) -> Dict[str, Any]:
     llm_view=create_work_orders_llm_view,
 )
 def create_work_orders(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("create_work_orders", args)
     return _fixture_backend.call("create_work_orders", args)
 
 
@@ -177,6 +187,8 @@ def send_alert_llm_view(out: SendAlertOutput) -> Dict[str, Any]:
     llm_view=send_alert_llm_view,
 )
 def send_alert(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("send_alert", args)
     return _fixture_backend.call("send_alert", args)
 
 
@@ -202,5 +214,7 @@ def promote_schedule_llm_view(out: PromoteScheduleOutput) -> Dict[str, Any]:
     llm_view=promote_schedule_llm_view,
 )
 def promote_schedule(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("promote_schedule", args)
     return _fixture_backend.call("promote_schedule", args)
 

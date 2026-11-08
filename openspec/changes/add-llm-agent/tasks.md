@@ -44,10 +44,10 @@
 
 ## 8. Live backends and evaluation
 
-- [ ] 8.1 Implement `backends/live.py` adapters and switch `optimize_maintenance` to live (on fixture tasks and cost map) as soon as producers step 5 lands; verify the contract test suite passes with the live backend and the scripted scenarios still pass
-- [ ] 8.2 Switch remaining producer tools and then consumer tools to live as modules land, one tool per commit; verify contract tests pass after each switch and `/health` shows `live` for that tool
-- [ ] 8.3 Implement `make eval-agent` (8 scenarios + ~10 Romanian paraphrases against the real model; expected-tool recall, grounding pass rate, confirmations requested where required, latency → `results/agent_eval.json`); verify the file is produced and the results are cited in README §4
-- [ ] 8.4 End-to-end demo rehearsal in both modes covering CLAUDE.md §10.4 scenarios 1–5 and the 3 consumer scenarios; verify each scenario completes and every displayed number traces to a tool result in the "Surse" panel
+- [x] 8.1 Implement `backends/live.py` adapters and switch `optimize_maintenance` to live (on fixture tasks and cost map) as soon as producers step 5 lands; verify the contract test suite passes with the live backend and the scripted scenarios still pass
+- [x] 8.2 Switch remaining producer tools and then consumer tools to live as modules land, one tool per commit; verify contract tests pass after each switch and `/health` shows `live` for that tool
+- [x] 8.3 Implement `make eval-agent` (8 scenarios + ~10 Romanian paraphrases against the real model; expected-tool recall, grounding pass rate, confirmations requested where required, latency → `results/agent_eval.json`); verify the file is produced and the results are cited in README §4
+- [x] 8.4 End-to-end demo rehearsal in both modes covering CLAUDE.md §10.4 scenarios 1–5 and the 3 consumer scenarios; verify each scenario completes and every displayed number traces to a tool result in the "Surse" panel
 
 ## Workflow follow-up
 

@@ -2,6 +2,7 @@
 
 from typing import Any, Dict
 from src.agent.backends.fixture import DEFAULT_FIXTURE_BACKEND
+from src.agent.backends.live import DEFAULT_LIVE_BACKEND
 from src.agent.registry import tool
 from src.agent.schemas.common import EffectClass
 from src.agent.schemas.consumers import (
@@ -14,6 +15,7 @@ from src.agent.schemas.consumers import (
 )
 
 _fixture_backend = DEFAULT_FIXTURE_BACKEND
+_live_backend = DEFAULT_LIVE_BACKEND
 
 
 # 7. predict_expected_consumption
@@ -41,6 +43,8 @@ def expected_consumption_llm_view(out: PredictExpectedConsumptionOutput) -> Dict
     llm_view=expected_consumption_llm_view,
 )
 def predict_expected_consumption(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("predict_expected_consumption", args)
     return _fixture_backend.call("predict_expected_consumption", args)
 
 
@@ -73,6 +77,8 @@ def score_households_llm_view(out: ScoreHouseholdsOutput) -> Dict[str, Any]:
     llm_view=score_households_llm_view,
 )
 def score_households(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("score_households", args)
     return _fixture_backend.call("score_households", args)
 
 
@@ -106,5 +112,7 @@ def build_inspection_list_llm_view(out: BuildInspectionListOutput) -> Dict[str, 
     llm_view=build_inspection_list_llm_view,
 )
 def build_inspection_list(args: Dict[str, Any], backend: str = "fixture") -> Any:
+    if backend == "live":
+        return _live_backend.call("build_inspection_list", args)
     return _fixture_backend.call("build_inspection_list", args)
 

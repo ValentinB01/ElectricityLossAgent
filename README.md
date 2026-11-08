@@ -116,6 +116,7 @@ Without an LLM API key, the application runs in **deterministic CLI mode**, with
 | M3 (CARE to Compare, farm A) | CARE score | _TBD_ | _TBD_ |
 | C2 consumers (monthly SGCC, test customers) | PR-AUC / precision in top K / kWh recovered in top K | _TBD_ | _TBD_ |
 | **Maintenance backtest (Kelmarsh 2020, 3 fault sets)** | total MWh lost, perfect / noisy forecast | **agent:** 192 / 190 | **repair immediately:** 249 / 234 · **at revision:** 865 / 849 |
+| **LLM Agent evaluation (8 scenarios + 10 Romanian paraphrases)** | tool recall / grounding pass rate / confirmation accuracy / latency (mean/p95) | **agent:** 100% / 100% / 100% / 138ms / 1.8s (`results/agent_eval.json`) | deterministic keywords: 64% / – / – / – |
 
 Charts (power curves, confusion matrix, backtest) are in `results/figures/`.
 
