@@ -38,9 +38,9 @@
 
 ## 7. Streamlit UI (E7–E8)
 
-- [ ] 7.1 Implement `src/app/dashboard.py` with `AgentClient` (HTTP default, in-process flag), header trust indicators, tabs Pierderi / Producători / Calendar / Inspecții fed by `/tools/*`, footer attribution and demo-data disclosure; verify `make demo` loads all tabs with the API running and with no LLM key
-- [ ] 7.2 Implement the chat panel: markdown without HTML, "Surse" expander, grounding badge, `{{table:...}}` rendering, confirmation cards with editable field-report fields, active vs draft calendar with highlighted changes and delta; verify manually the scenario "Echipa 2 lipsește joi" → draft shown → Confirmă → active calendar updated
-- [ ] 7.3 Implement drill-down from map, calendar and inspection list to `explain` (cost table / actual-vs-expected chart, peer comparison, top 3 factors); verify selecting T17 and the faulty-meter household shows their explanations without the LLM
+- [x] 7.1 Implement `src/app/dashboard.py` with `AgentClient` (HTTP default, in-process flag), header trust indicators, tabs Pierderi / Producători / Calendar / Inspecții fed by `/tools/*`, footer attribution and demo-data disclosure; verify `make demo` loads all tabs with the API running and with no LLM key
+- [x] 7.2 Implement the chat panel: markdown without HTML, "Surse" expander, grounding badge, `{{table:...}}` rendering, confirmation cards with editable field-report fields, active vs draft calendar with highlighted changes and delta; verify manually the scenario "Echipa 2 lipsește joi" → draft shown → Confirmă → active calendar updated
+- [x] 7.3 Implement drill-down from map, calendar and inspection list to `explain` (cost table / actual-vs-expected chart, peer comparison, top 3 factors); verify selecting T17 and the faulty-meter household shows their explanations without the LLM
 
 ## 8. Live backends and evaluation
 

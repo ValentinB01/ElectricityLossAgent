@@ -353,6 +353,17 @@ def create_app(
             )
         return sched
 
+    @app.get("/schedules/draft")
+    def get_latest_draft_schedule() -> Dict[str, Any]:
+        """Get the latest what-if draft schedule, shown next to the active plan."""
+        sched = app_store.get_latest_draft_schedule()
+        if not sched:
+            raise HTTPException(
+                status_code=404,
+                detail={"code": "not_found", "message": "No draft schedule found in database", "details": None},
+            )
+        return sched
+
     @app.get("/schedules/{schedule_id}")
     def get_schedule(schedule_id: str) -> Dict[str, Any]:
         """Get a specific schedule by ID (active, draft, or history)."""
