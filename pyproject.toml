@@ -2,3 +2,5 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+addopts = "-ra -p no:cacheprovider"
+faulthandler_timeout = 60

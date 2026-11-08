@@ -1,17 +1,23 @@
 # Data and models are recreated by scripts (CLAUDE.md rule 2)
 /data/
 /models/
+data.csv
 # Results stay local: the scripts regenerate them
 /results/
+# Consumers (SGCC) training outputs
+/outputs/
+/experiments/
 # Test-run outputs and packaged artifacts
 .smoke/
 dist/
+test-results*.xml
 # Python
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .ipynb_checkpoints/
 .venv/
+.cache/
 # Credentials
 kaggle.json
 .env
