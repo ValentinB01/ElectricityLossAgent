@@ -273,9 +273,9 @@ For production, we would need from PPC: real SCADA, the service log, service con
 
 | Member | Role |
 |---|---|
-| Valentin | Producers module: expected production (wind + PV), downtime cost, maintenance optimizer, backtest |
-| _Colleague_ | Consumers module: expected consumption, anomaly detection, inspection queue |
-| _Whole team_ | LLM agent, interface, evaluation, presentation |
+| Buse Valentin | Producers module: expected production (wind + PV), downtime cost, maintenance optimizer, backtest |
+| Anghel Eduard | Consumers module: expected consumption, anomaly detection, inspection queue |
+| Cuntan Paul | LLM agent, interface, evaluation, presentation |
 
 ---
 
