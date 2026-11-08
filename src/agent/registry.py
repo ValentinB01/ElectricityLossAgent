@@ -345,7 +345,9 @@ class ToolRegistry:
         # 7. Ensure provenance is attached and set
         if hasattr(validated_output, "provenance") and validated_output.provenance:
             validated_output.provenance.tool = tool_name
-            validated_output.provenance.backend = backend_label
+            # A live tool may answer part of a request from demo data (e.g. a household in explain); keep that label.
+            if not (backend_label == "live" and validated_output.provenance.backend == "fixture"):
+                validated_output.provenance.backend = backend_label
             if as_of_str and not validated_output.provenance.as_of:
                 validated_output.provenance.as_of = as_of_str
             prov = validated_output.provenance

@@ -189,14 +189,14 @@ def get_forecast(site: str, variables: str = FORECAST_VARS) -> tuple[pd.DataFram
 
 
 def cost_map(site: str, w: pd.DataFrame) -> pd.DataFrame:
-    """One row per turbine and hour: cost_mwh (production lost if stopped, p50), cost_mwh_p90, workable, and the weather behind them."""
+    """One row per turbine and hour: cost_mwh (production lost if stopped, p50), cost_mwh_p10 and _p90, workable, and the weather behind them."""
     wh = hour_means(w)
     parts = []
     for f in fleet(site).itertuples():
         X = features(wh, f.hub_m)
         q = np.clip(predict_frac(X), 0, 1) * f.rated_kw / 1000  # Idle turbines draw a little power; a stop never costs less than nothing.
         ok = X[["v_hub", "gust_factor"]].notna().all(axis=1).to_numpy() & wh.precipitation.notna().to_numpy()
-        parts.append(pd.DataFrame({"turbine": f.turbine, "hour_utc": wh.hour, "cost_mwh": q[:, 1], "cost_mwh_p90": q[:, 2],
+        parts.append(pd.DataFrame({"turbine": f.turbine, "hour_utc": wh.hour, "cost_mwh": q[:, 1], "cost_mwh_p10": q[:, 0], "cost_mwh_p90": q[:, 2],
                                    "workable": ok & (X.v_hub.to_numpy() < V_SAFE_MS) & (wh.wind_gusts_10m.to_numpy(float) < G_SAFE_MS) & (wh.precipitation.to_numpy(float) < P_MAX_MM),
                                    "v_hub": X.v_hub.round(2), "gust_ms": wh.wind_gusts_10m, "rain_mm": wh.precipitation})[ok])
     return pd.concat(parts, ignore_index=True)

@@ -96,6 +96,25 @@ def test_repair_groups_with_a_revision_when_cheaper():
     assert r.get("bundled_with") == "R" and r["cost_breakdown_mwh"]["downtime"] == 0
 
 
+def test_deferred_repair_waits_even_when_a_revision_could_carry_it():
+    """A deferral means "not before": a revision's stop today does not pull the repair back."""
+    rev = Task("R", "A", "s", "revision", 16, TODAY, TODAY + dt.timedelta(days=9))
+    jobs = {j["task_id"]: j for j in optimize([rev, repair(hours=6, due_start=TODAY + dt.timedelta(days=3))], cmap(), Constraints(TODAY))["jobs"]}
+    assert jobs["T"]["date"] >= (TODAY + dt.timedelta(days=3)).isoformat()
+    assert "2026-11-08" in {a["date"] for a in jobs["T"]["alternatives"]} and "deferred until" in next(a["why_not"] for a in jobs["T"]["alternatives"] if a["date"] == "2026-11-08")
+
+
+def test_deferred_inspection_waits():
+    check = Task("C", "A", "s", "inspection", 1, due_start=TODAY + dt.timedelta(days=2))
+    assert optimize([check], cmap(), Constraints(TODAY))["jobs"][0]["date"] == "2026-11-10"
+
+
+def test_a_deferred_plan_gets_its_own_id():
+    """A what-if must not overwrite the plan it is compared with."""
+    base = optimize([repair()], cmap(), Constraints(TODAY))["schedule_id"]
+    assert optimize([repair(due_start=TODAY + dt.timedelta(days=3))], cmap(), Constraints(TODAY))["schedule_id"] != base
+
+
 def test_low_confidence_becomes_a_check_that_stops_nothing():
     tasks = tasks_from_findings([finding("yaw_misalignment", confidence=0.4)], "s", TODAY)
     assert tasks[0].kind == "inspection" and tasks[0].job_type == "low_confidence_check"

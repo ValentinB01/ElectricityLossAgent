@@ -221,7 +221,7 @@ def cost_map(site: str, w: pd.DataFrame) -> pd.DataFrame:
     q = np.clip(q, 0, 1)
     q[wh.irr_wm2.to_numpy() < MIN_IRR_WM2] = 0.0
     workable = (wh.gust_ms < downtime_cost.G_SAFE_MS) & (wh.rain_mm < downtime_cost.P_MAX_MM)
-    return pd.concat([pd.DataFrame({"turbine": f.turbine, "hour_utc": wh.hour_utc, "cost_mwh": q[:, 1] * f.rated_kw / 1000, "cost_mwh_p90": q[:, 2] * f.rated_kw / 1000,
+    return pd.concat([pd.DataFrame({"turbine": f.turbine, "hour_utc": wh.hour_utc, "cost_mwh": q[:, 1] * f.rated_kw / 1000, "cost_mwh_p10": q[:, 0] * f.rated_kw / 1000, "cost_mwh_p90": q[:, 2] * f.rated_kw / 1000,
                                     "workable": workable, "v_hub": np.nan, "gust_ms": wh.gust_ms, "rain_mm": wh.rain_mm, "irr_wm2": wh.irr_wm2}) for f in downtime_cost.fleet(site).itertuples()], ignore_index=True)
 
 

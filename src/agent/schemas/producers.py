@@ -11,9 +11,9 @@ class WeatherHourlyRecord(BaseModel):
 
     timestamp: str
     temperature_c: float
-    wind_speed_ms: float
-    wind_direction_deg: float
-    surface_solar_radiation_wm2: float
+    wind_speed_ms: Optional[float] = None  # Live: the 10 m forecast; None where the site does not fetch it
+    wind_direction_deg: Optional[float] = None
+    surface_solar_radiation_wm2: Optional[float] = None
     precipitation_mm: float
 
 
@@ -65,7 +65,7 @@ class UnderperformanceDetection(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     asset_id: str
-    pi_72h: float = Field(description="72-hour performance index (1.0 is nominal)")
+    pi_72h: Optional[float] = Field(default=None, description="72-hour performance index (1.0 is nominal); None if no usable hour")
     loss_mwh_per_day: float
     loss_ron_per_day: float
     cause: str = Field(description="Detected cause: pitch_fault, yaw_misalignment, icing, soiling, etc.")
@@ -178,8 +178,8 @@ class JobAlternative(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     date: str
-    total_mwh: float
-    total_ron: float
+    total_mwh: Optional[float] = Field(default=None, description="None when the day has no feasible slot; why_not says why")
+    total_ron: Optional[float] = None
     why_not: str
 
 

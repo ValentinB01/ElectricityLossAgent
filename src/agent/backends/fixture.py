@@ -3,6 +3,7 @@
 import copy
 from datetime import datetime, timezone
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict
 from src.agent.schemas.common import ErrorCode, StructuredError
@@ -16,6 +17,12 @@ def _load_fixture(tool_name: str) -> Dict[str, Any]:
         raise FileNotFoundError(f"Fixture file not found: {file_path}")
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def _is_crew_2(value: Any) -> bool:
+    """crew-2, crew_2, "2", "echipa 2": any spelling that names crew 2 (the demo's precomputed scenario)."""
+    m = re.search(r"\d+", str(value or ""))
+    return bool(m) and int(m.group()) == 2
 
 
 class FixtureBackend:
@@ -98,7 +105,7 @@ class FixtureBackend:
         thursday_tokens = {"2026-11-12", "thursday", "joi"}
         if isinstance(unavail, list):
             for u in unavail:
-                if isinstance(u, dict) and (u.get("crew") in ("crew-2", "crew_2") or u.get("crew_id") in ("crew-2", "crew_2")):
+                if isinstance(u, dict) and (_is_crew_2(u.get("crew")) or _is_crew_2(u.get("crew_id"))):
                     d_str = str(u.get("date", u.get("day", ""))).lower()
                     if any(tok in d_str for tok in thursday_tokens):
                         crew_off_thursday = True
@@ -106,7 +113,7 @@ class FixtureBackend:
                     crew_off_thursday = True
         
         crew_key = constraints.get("crew") or constraints.get("crew_id")
-        if isinstance(crew_key, str) and crew_key in ("crew-2", "crew_2"):
+        if _is_crew_2(crew_key):
             d_str = str(constraints.get("date", constraints.get("day", ""))).lower()
             if any(tok in d_str for tok in thursday_tokens):
                 crew_off_thursday = True

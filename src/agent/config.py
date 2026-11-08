@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Dict, Literal
 import yaml
@@ -52,5 +53,9 @@ def load_agent_config(config_path: Path | str = "config/agent.yaml") -> AgentCon
         return AgentConfig()
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
+    # AGENT_BACKENDS=fixture runs every tool on the demo fixtures (tests, an offline demo); =live forces the live backend.
+    forced = os.environ.get("AGENT_BACKENDS", "").strip().lower()
+    if forced in ("fixture", "live"):
+        data["backends"] = {name: forced for name in (data.get("backends") or {})}
     return AgentConfig.model_validate(data)
 
