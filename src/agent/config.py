@@ -32,6 +32,7 @@ class AgentConfig(BaseModel):
     provider: str = Field(default="gemini")
     model: str = Field(default="gemini/gemini-2.5-flash")
     as_of: str = Field(default="2026-11-08")
+    stale_forecast: bool = Field(default=False)
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
     grounding: GroundingConfig = Field(default_factory=GroundingConfig)
     action: ActionConfig = Field(default_factory=ActionConfig)

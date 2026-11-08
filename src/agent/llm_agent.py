@@ -137,13 +137,18 @@ class LLMAgent:
             action_summaries = [f"{a['id']}: {a['tool']}" for a in open_actions[:3]]
             actions_desc += f" ({', '.join(action_summaries)})"
 
+        stale_desc = (
+            "avertizare: prognoză meteo expirată (stale)"
+            if getattr(self.config, "stale_forecast", False)
+            else "normal (fără avertizări de expirare)"
+        )
         return (
             "[NOTĂ STARE SESIUNE]\n"
             f"- Data de referință demo (as_of): {self.config.as_of}\n"
             f"- Plan activ de mentenanță: {active_sched_id}\n"
             f"- Ultimul plan ciornă (draft): {latest_draft_id}\n"
             f"- Acțiuni în așteptare de confirmare: {actions_desc}\n"
-            f"- Stare prognoză meteo: normal (fără avertizări de expirare)"
+            f"- Stare prognoză meteo: {stale_desc}"
         )
 
     def _assemble_context(self, session_id: str, user_message: str) -> List[Dict[str, Any]]:

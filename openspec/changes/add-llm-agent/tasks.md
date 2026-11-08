@@ -33,8 +33,8 @@
 
 ## 6. API (E7)
 
-- [ ] 6.1 Implement `api.py` endpoints from design D12 (`/chat`, `/tools`, `/tools/{name}`, `/actions*`, `/schedules*`, `/sessions/{id}`, `/health`) with structured 4xx/5xx errors and loopback bind; verify FastAPI TestClient tests: unknown tool → 404 `unknown_tool`, bad args → 422 with fields, direct write call → pending action and no files written, confirm executes once
-- [ ] 6.2 Wire `make agent` (uvicorn on 127.0.0.1) and add an agent section to README §6 (env var for the key, deterministic mode, `make eval-agent`); verify `make agent` starts and `GET /health` reports mode and per-tool backends
+- [x] 6.1 Implement `api.py` endpoints from design D12 (`/chat`, `/tools`, `/tools/{name}`, `/actions*`, `/schedules*`, `/sessions/{id}`, `/health`) with structured 4xx/5xx errors and loopback bind; verify FastAPI TestClient tests: unknown tool → 404 `unknown_tool`, bad args → 422 with fields, direct write call → pending action and no files written, confirm executes once
+- [x] 6.2 Wire `make agent` (uvicorn on 127.0.0.1) and add an agent section to README §6 (env var for the key, deterministic mode, `make eval-agent`); verify `make agent` starts and `GET /health` reports mode and per-tool backends
 
 ## 7. Streamlit UI (E7–E8)
 

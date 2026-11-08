@@ -171,7 +171,13 @@ make setup
 
 **Kaggle token** (for the PV and consumption datasets): create `~/.kaggle/kaggle.json` from your Kaggle account → *Settings* → *API*.
 
-**LLM** *(optional)*: set the environment variable for the chosen provider (see `config/agent.yaml`). Without it, the agent runs in CLI mode.
+**LLM configuration & deterministic mode**:
+The agent supports multiple LLM providers configured via `config/agent.yaml`:
+- **Google Gemini** (default): set `GEMINI_API_KEY` (model: `gemini/gemini-2.5-flash` or `gemini/gemini-1.5-pro`)
+- **OpenAI**: set `OPENAI_API_KEY` (e.g. `gpt-4o`, `gpt-4o-mini`)
+- **Anthropic**: set `ANTHROPIC_API_KEY` (e.g. `claude-3-5-sonnet`)
+
+If no LLM API key is present in the environment, the agent automatically falls back to **deterministic mode**. In deterministic mode, all tool dispatching, Action Gate lifecycle rules, Romanian Jinja2 responses, and numeric grounding work identically without external API calls or network egress.
 
 | Command | What it does |
 |---|---|
@@ -179,9 +185,12 @@ make setup
 | `make data-full` | Also downloads the optional sets (CARE to Compare, Hill of Towie, PVDAQ) |
 | `make train` | Trains M1, M2, C1, C2 (and M3 if the data exists) |
 | `make eval` | Evaluates all models against baselines and runs the backtest; writes `results/*.json` and the charts |
-| `make agent` | Starts the agent API (FastAPI) |
+| `make agent` | Starts the local FastAPI agent service on `127.0.0.1:8000` via Uvicorn |
+| `make eval-agent` | Runs the end-to-end agent scenario evaluation suite (`tests/test_agent_scenarios.py`) |
 | `make demo` | Starts the interface (Streamlit) |
-| `make test` | Runs the schema and optimizer tests |
+| `make test` | Runs the schema, optimizer, and agent test suite |
+
+The agent API binds strictly to `127.0.0.1` by default. Check status at `GET http://127.0.0.1:8000/health`, which reports the active mode (`llm` or `deterministic`), model/provider, and per-tool backend bindings.
 
 All numeric assumptions (wind limit for work, failure cost, job durations, crew capacity, energy price) are in `config/params.yaml`.
 
