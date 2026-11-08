@@ -1,0 +1,25 @@
+=== ACȚIUNE CONFIRMATĂ ȘI EXECUTATĂ ===
+ID Acțiune: {{ action_id }}
+Unealtă: {{ tool }}
+Stare: executat
+Rezultat: {{ summary }}
+{% if post_hooks.what_if_draft is defined %}
+
+Plan draft generat automat în urma raportului:
+  - Draft ID: {{ post_hooks.what_if_draft.schedule_id }}
+  - Diferență cost: {{ post_hooks.what_if_draft.delta_mwh }} MWh ({{ post_hooks.what_if_draft.delta_ron }} RON)
+{% endif %}
+{% if post_hooks.household_label is defined %}
+
+Etichetă salvată pentru reantrenare:
+  - Gospodărie: {{ post_hooks.household_label.household_id }}
+  - Etichetă: {{ post_hooks.household_label.label }}
+{% endif %}
+{% if post_hooks.promoted_schedule is defined %}
+
+Plan promovat ca activ:
+  - Plan ID: {{ post_hooks.promoted_schedule.schedule_id }}
+  - Plan anterior: {{ post_hooks.promoted_schedule.previous_active_id }}
+  - Diferență cost: {{ post_hooks.promoted_schedule.delta_mwh }} MWh ({{ post_hooks.promoted_schedule.delta_ron }} RON)
+{% endif %}
+

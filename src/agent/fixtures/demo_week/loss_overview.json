@@ -1,0 +1,40 @@
+{
+  "period": "week",
+  "rows": [
+    {
+      "category": "producers_underperformance",
+      "description": "Subperformanță turbine eoliene și invertoare (Fântânele T17, T09, Călugăreni INV02)",
+      "mwh": 19.6,
+      "ron": 8820.0,
+      "source_ref": "res-det-001",
+      "confidence": 0.88
+    },
+    {
+      "category": "producers_downtime",
+      "description": "Downtime programat revizii și reparații mentenanță",
+      "mwh": 16.1,
+      "ron": 7245.0,
+      "source_ref": "sched-active-001",
+      "confidence": 1.0
+    },
+    {
+      "category": "consumers_suspect",
+      "description": "Pierderi suspecte rețea consumatori (anomalii și contoare defecte)",
+      "mwh": 4.2,
+      "ron": 1890.0,
+      "source_ref": "res-score-hh-001",
+      "confidence": 0.85
+    }
+  ],
+  "total_mwh": 39.9,
+  "total_ron": 17955.0,
+  "provenance": {
+    "result_id": "res-loss-ovw-001",
+    "tool": "loss_overview",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  }
+}
+

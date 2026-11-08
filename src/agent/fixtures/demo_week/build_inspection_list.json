@@ -1,0 +1,39 @@
+{
+  "inspections": [
+    {
+      "rank": 1,
+      "household_id": "HH-THEFT-01",
+      "area": "Constanța Nord",
+      "assigned_crew": "echipa-teren-1",
+      "theft_probability": 0.88,
+      "monthly_loss_kwh": 290.0,
+      "monthly_loss_ron": 130.5,
+      "signal_type": "theft",
+      "expected_recovery_ron": 783.0,
+      "priority": "high"
+    },
+    {
+      "rank": 2,
+      "household_id": "HH-FAULTY-01",
+      "area": "Giurgiu Sud",
+      "assigned_crew": "echipa-metrologie",
+      "theft_probability": 0.15,
+      "monthly_loss_kwh": 380.0,
+      "monthly_loss_ron": 171.0,
+      "signal_type": "faulty_meter",
+      "expected_recovery_ron": 1026.0,
+      "priority": "high"
+    }
+  ],
+  "total_expected_recovery_kwh": 670.0,
+  "total_expected_recovery_ron": 1809.0,
+  "provenance": {
+    "result_id": "res-insp-list-001",
+    "tool": "build_inspection_list",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  }
+}
+

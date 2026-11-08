@@ -1,0 +1,246 @@
+{
+  "item_id": "T17-pitch-001",
+  "item_type": "scheduled_job",
+  "scheduled_job_explanation": {
+    "task_id": "T17-pitch-001",
+    "asset_id": "FAN-T17",
+    "date": "2026-11-13",
+    "crew": "crew-1",
+    "cost_breakdown_mwh": {
+      "downtime": 2.0,
+      "waiting": 5.6,
+      "risk": 0.0,
+      "total": 7.6
+    },
+    "cost_breakdown_ron": {
+      "downtime": 900.0,
+      "waiting": 2520.0,
+      "risk": 0.0,
+      "total": 3420.0
+    },
+    "alternatives": [
+      {
+        "date": "2026-11-09",
+        "total_mwh": 19.4,
+        "total_ron": 8730.0,
+        "why_not": "strong wind: 18 MWh downtime"
+      }
+    ],
+    "trace": {
+      "m2_cause": "pitch_fault",
+      "m2_proba": 0.85,
+      "m2_loss_mwh_day": 1.4,
+      "m4_forecast_run": "2026-11-08T00:00:00Z"
+    }
+  },
+  "household_explanation": null,
+  "provenance": {
+    "result_id": "res-expl-t17",
+    "tool": "explain",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  },
+  "items": {
+    "T17-pitch-001": {
+      "item_id": "T17-pitch-001",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "T17-pitch-001",
+        "asset_id": "FAN-T17",
+        "date": "2026-11-13",
+        "crew": "crew-1",
+        "cost_breakdown_mwh": {
+          "downtime": 2.0,
+          "waiting": 5.6,
+          "risk": 0.0,
+          "total": 7.6
+        },
+        "cost_breakdown_ron": {
+          "downtime": 900.0,
+          "waiting": 2520.0,
+          "risk": 0.0,
+          "total": 3420.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-09",
+            "total_mwh": 19.4,
+            "total_ron": 8730.0,
+            "why_not": "strong wind: 18 MWh downtime"
+          }
+        ],
+        "trace": {
+          "m2_cause": "pitch_fault",
+          "m2_proba": 0.85,
+          "m2_loss_mwh_day": 1.4,
+          "m4_forecast_run": "2026-11-08T00:00:00Z"
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-t17",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "FAN-T17": {
+      "item_id": "FAN-T17",
+      "item_type": "scheduled_job",
+      "scheduled_job_explanation": {
+        "task_id": "T17-pitch-001",
+        "asset_id": "FAN-T17",
+        "date": "2026-11-13",
+        "crew": "crew-1",
+        "cost_breakdown_mwh": {
+          "downtime": 2.0,
+          "waiting": 5.6,
+          "risk": 0.0,
+          "total": 7.6
+        },
+        "cost_breakdown_ron": {
+          "downtime": 900.0,
+          "waiting": 2520.0,
+          "risk": 0.0,
+          "total": 3420.0
+        },
+        "alternatives": [
+          {
+            "date": "2026-11-09",
+            "total_mwh": 19.4,
+            "total_ron": 8730.0,
+            "why_not": "strong wind: 18 MWh downtime"
+          }
+        ],
+        "trace": {
+          "m2_cause": "pitch_fault",
+          "m2_proba": 0.85,
+          "m2_loss_mwh_day": 1.4,
+          "m4_forecast_run": "2026-11-08T00:00:00Z"
+        }
+      },
+      "household_explanation": null,
+      "provenance": {
+        "result_id": "res-expl-t17",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "HH-FAULTY-01": {
+      "item_id": "HH-FAULTY-01",
+      "item_type": "household",
+      "scheduled_job_explanation": null,
+      "household_explanation": {
+        "household_id": "HH-FAULTY-01",
+        "area": "Giurgiu Sud",
+        "theft_probability": 0.15,
+        "signal_type": "faulty_meter",
+        "monthly_actual_kwh": [
+          {"month": "2026-07", "kwh": 360.0},
+          {"month": "2026-08", "kwh": 375.0},
+          {"month": "2026-09", "kwh": 12.0},
+          {"month": "2026-10", "kwh": 0.0}
+        ],
+        "monthly_expected_kwh": [
+          {"month": "2026-07", "kwh": 355.0},
+          {"month": "2026-08", "kwh": 370.0},
+          {"month": "2026-09", "kwh": 365.0},
+          {"month": "2026-10", "kwh": 380.0}
+        ],
+        "peer_comparison": {
+          "peer_group_name": "Rural Rezidențial Giurgiu",
+          "avg_kwh": 340.0,
+          "household_kwh": 0.0,
+          "deviation_pct": -100.0
+        },
+        "top_factors": [
+          {
+            "factor": "zero_consumption_drop",
+            "importance": 0.58,
+            "description": "Scădere bruscă la zero fără deconectare contractată"
+          },
+          {
+            "factor": "history_regularity",
+            "importance": 0.27,
+            "description": "Consum stabil timp de 24 luni înainte de blocare"
+          },
+          {
+            "factor": "tamper_flag",
+            "importance": 0.15,
+            "description": "Fără semnal de atac sau deviere fază raportat de concentrator"
+          }
+        ]
+      },
+      "provenance": {
+        "result_id": "res-expl-hh-faulty",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "HH-THEFT-01": {
+      "item_id": "HH-THEFT-01",
+      "item_type": "household",
+      "scheduled_job_explanation": null,
+      "household_explanation": {
+        "household_id": "HH-THEFT-01",
+        "area": "Constanța Nord",
+        "theft_probability": 0.88,
+        "signal_type": "theft",
+        "monthly_actual_kwh": [
+          {"month": "2026-07", "kwh": 180.0},
+          {"month": "2026-08", "kwh": 170.0},
+          {"month": "2026-09", "kwh": 130.0},
+          {"month": "2026-10", "kwh": 130.0}
+        ],
+        "monthly_expected_kwh": [
+          {"month": "2026-07", "kwh": 390.0},
+          {"month": "2026-08", "kwh": 410.0},
+          {"month": "2026-09", "kwh": 380.0},
+          {"month": "2026-10", "kwh": 420.0}
+        ],
+        "peer_comparison": {
+          "peer_group_name": "Urban Constanța Clasa B",
+          "avg_kwh": 395.0,
+          "household_kwh": 130.0,
+          "deviation_pct": -67.1
+        },
+        "top_factors": [
+          {
+            "factor": "ratio_reduction",
+            "importance": 0.52,
+            "description": "Scădere persistentă la factor fix ~0.33 din consumul normal"
+          },
+          {
+            "factor": "seasonal_flattening",
+            "importance": 0.31,
+            "description": "Dispariția variației sezoniere de răcire/încălzire"
+          },
+          {
+            "factor": "peer_anomaly",
+            "importance": 0.17,
+            "description": "Deviație semnificativă față de consumul vecinilor de pe același post trafo"
+          }
+        ]
+      },
+      "provenance": {
+        "result_id": "res-expl-hh-theft",
+        "tool": "explain",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    }
+  }
+}
+

@@ -1,0 +1,15 @@
+=== PLAN MENTENANȚĂ DRAFT (ECHIPĂ INDISPONIBILĂ) ===
+Plan ID: {{ schedule_id }}
+Constrângere: {{ crew }} indisponibilă la {{ date }}
+Cost total: {{ total_mwh }} MWh ({{ total_ron }} RON)
+
+Diferență față de planul activ:
+  - Variație pierdere producție: {{ delta_mwh }} MWh
+  - Variație cost: {{ delta_ron }} RON
+
+Intervenții reprogramate:
+{% for job in moved_jobs %}
+  - Sarcină reprogramată: {{ job }}
+{% endfor %}
+
+Notă: Pentru activarea acestui plan rulați comanda: promote {{ schedule_id }}

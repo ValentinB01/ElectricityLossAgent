@@ -1,0 +1,397 @@
+{
+  "schedule_id": "sched-draft-base",
+  "status": "draft",
+  "parent_schedule_id": "sched-active-001",
+  "jobs": [
+    {
+      "task_id": "T17-pitch-001",
+      "asset_id": "FAN-T17",
+      "date": "2026-11-13",
+      "start_hour": 8,
+      "duration_hours": 8.0,
+      "crew": "crew-1",
+      "cost_breakdown_mwh": {
+        "downtime": 2.0,
+        "waiting": 5.6,
+        "risk": 0.0,
+        "total": 7.6
+      },
+      "cost_breakdown_ron": {
+        "downtime": 900.0,
+        "waiting": 2520.0,
+        "risk": 0.0,
+        "total": 3420.0
+      },
+      "alternatives": [
+        {
+          "date": "2026-11-09",
+          "total_mwh": 19.4,
+          "total_ron": 8730.0,
+          "why_not": "strong wind: 18 MWh downtime"
+        }
+      ],
+      "trace": {
+        "m2_cause": "pitch_fault",
+        "m2_proba": 0.85,
+        "m2_loss_mwh_day": 1.4,
+        "m4_forecast_run": "2026-11-08T00:00:00Z"
+      }
+    },
+    {
+      "task_id": "T05-bearing-001",
+      "asset_id": "FAN-T05",
+      "date": "2026-11-10",
+      "start_hour": 8,
+      "duration_hours": 6.0,
+      "crew": "crew-2",
+      "cost_breakdown_mwh": {
+        "downtime": 4.5,
+        "waiting": 1.0,
+        "risk": 0.0,
+        "total": 5.5
+      },
+      "cost_breakdown_ron": {
+        "downtime": 2025.0,
+        "waiting": 450.0,
+        "risk": 0.0,
+        "total": 2475.0
+      },
+      "alternatives": [],
+      "trace": {
+        "m2_cause": "bearing_wear",
+        "m2_loss_mwh_day": 0.5
+      }
+    },
+    {
+      "task_id": "T01-rev-001",
+      "asset_id": "FAN-T01",
+      "date": "2026-11-12",
+      "start_hour": 8,
+      "duration_hours": 8.0,
+      "crew": "crew-2",
+      "cost_breakdown_mwh": {
+        "downtime": 3.0,
+        "waiting": 0.0,
+        "risk": 0.0,
+        "total": 3.0
+      },
+      "cost_breakdown_ron": {
+        "downtime": 1350.0,
+        "waiting": 0.0,
+        "risk": 0.0,
+        "total": 1350.0
+      },
+      "alternatives": [],
+      "trace": {
+        "m2_cause": "periodic_revision"
+      }
+    }
+  ],
+  "total_mwh": 16.1,
+  "total_ron": 7245.0,
+  "active_total_mwh": 16.1,
+  "active_total_ron": 7245.0,
+  "delta_mwh": 0.0,
+  "delta_ron": 0.0,
+  "moved_jobs": [],
+  "provenance": {
+    "result_id": "res-opt-001",
+    "tool": "optimize_maintenance",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  },
+  "variants": {
+    "baseline": {
+      "schedule_id": "sched-draft-base",
+      "status": "draft",
+      "parent_schedule_id": "sched-active-001",
+      "jobs": [
+        {
+          "task_id": "T17-pitch-001",
+          "asset_id": "FAN-T17",
+          "date": "2026-11-13",
+          "start_hour": 8,
+          "duration_hours": 8.0,
+          "crew": "crew-1",
+          "cost_breakdown_mwh": {
+            "downtime": 2.0,
+            "waiting": 5.6,
+            "risk": 0.0,
+            "total": 7.6
+          },
+          "cost_breakdown_ron": {
+            "downtime": 900.0,
+            "waiting": 2520.0,
+            "risk": 0.0,
+            "total": 3420.0
+          },
+          "alternatives": [
+            {
+              "date": "2026-11-09",
+              "total_mwh": 19.4,
+              "total_ron": 8730.0,
+              "why_not": "strong wind: 18 MWh downtime"
+            }
+          ],
+          "trace": {
+            "m2_cause": "pitch_fault",
+            "m2_proba": 0.85,
+            "m2_loss_mwh_day": 1.4,
+            "m4_forecast_run": "2026-11-08T00:00:00Z"
+          }
+        },
+        {
+          "task_id": "T05-bearing-001",
+          "asset_id": "FAN-T05",
+          "date": "2026-11-10",
+          "start_hour": 8,
+          "duration_hours": 6.0,
+          "crew": "crew-2",
+          "cost_breakdown_mwh": {
+            "downtime": 4.5,
+            "waiting": 1.0,
+            "risk": 0.0,
+            "total": 5.5
+          },
+          "cost_breakdown_ron": {
+            "downtime": 2025.0,
+            "waiting": 450.0,
+            "risk": 0.0,
+            "total": 2475.0
+          },
+          "alternatives": [],
+          "trace": {
+            "m2_cause": "bearing_wear",
+            "m2_loss_mwh_day": 0.5
+          }
+        },
+        {
+          "task_id": "T01-rev-001",
+          "asset_id": "FAN-T01",
+          "date": "2026-11-12",
+          "start_hour": 8,
+          "duration_hours": 8.0,
+          "crew": "crew-2",
+          "cost_breakdown_mwh": {
+            "downtime": 3.0,
+            "waiting": 0.0,
+            "risk": 0.0,
+            "total": 3.0
+          },
+          "cost_breakdown_ron": {
+            "downtime": 1350.0,
+            "waiting": 0.0,
+            "risk": 0.0,
+            "total": 1350.0
+          },
+          "alternatives": [],
+          "trace": {
+            "m2_cause": "periodic_revision"
+          }
+        }
+      ],
+      "total_mwh": 16.1,
+      "total_ron": 7245.0,
+      "active_total_mwh": 16.1,
+      "active_total_ron": 7245.0,
+      "delta_mwh": 0.0,
+      "delta_ron": 0.0,
+      "moved_jobs": [],
+      "provenance": {
+        "result_id": "res-opt-001",
+        "tool": "optimize_maintenance",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "crew_2_off_thursday": {
+      "schedule_id": "sched-draft-crew2-off",
+      "status": "draft",
+      "parent_schedule_id": "sched-active-001",
+      "jobs": [
+        {
+          "task_id": "T17-pitch-001",
+          "asset_id": "FAN-T17",
+          "date": "2026-11-13",
+          "start_hour": 8,
+          "duration_hours": 8.0,
+          "crew": "crew-1",
+          "cost_breakdown_mwh": {
+            "downtime": 2.0,
+            "waiting": 5.6,
+            "risk": 0.0,
+            "total": 7.6
+          },
+          "cost_breakdown_ron": {
+            "downtime": 900.0,
+            "waiting": 2520.0,
+            "risk": 0.0,
+            "total": 3420.0
+          },
+          "alternatives": [],
+          "trace": {}
+        },
+        {
+          "task_id": "T05-bearing-001",
+          "asset_id": "FAN-T05",
+          "date": "2026-11-10",
+          "start_hour": 8,
+          "duration_hours": 6.0,
+          "crew": "crew-2",
+          "cost_breakdown_mwh": {
+            "downtime": 4.5,
+            "waiting": 1.0,
+            "risk": 0.0,
+            "total": 5.5
+          },
+          "cost_breakdown_ron": {
+            "downtime": 2025.0,
+            "waiting": 450.0,
+            "risk": 0.0,
+            "total": 2475.0
+          },
+          "alternatives": [],
+          "trace": {}
+        },
+        {
+          "task_id": "T01-rev-001",
+          "asset_id": "FAN-T01",
+          "date": "2026-11-14",
+          "start_hour": 8,
+          "duration_hours": 8.0,
+          "crew": "crew-1",
+          "cost_breakdown_mwh": {
+            "downtime": 4.2,
+            "waiting": 0.0,
+            "risk": 0.0,
+            "total": 4.2
+          },
+          "cost_breakdown_ron": {
+            "downtime": 1890.0,
+            "waiting": 0.0,
+            "risk": 0.0,
+            "total": 1890.0
+          },
+          "alternatives": [],
+          "trace": {
+            "moved_reason": "crew-2 unavailable on Thursday 2026-11-12"
+          }
+        }
+      ],
+      "total_mwh": 17.3,
+      "total_ron": 7785.0,
+      "active_total_mwh": 16.1,
+      "active_total_ron": 7245.0,
+      "delta_mwh": 1.2,
+      "delta_ron": 540.0,
+      "moved_jobs": [
+        "T01-rev-001"
+      ],
+      "provenance": {
+        "result_id": "res-opt-002",
+        "tool": "optimize_maintenance",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    },
+    "t05_deferred_5_days": {
+      "schedule_id": "sched-draft-t05-defer",
+      "status": "draft",
+      "parent_schedule_id": "sched-active-001",
+      "jobs": [
+        {
+          "task_id": "T17-pitch-001",
+          "asset_id": "FAN-T17",
+          "date": "2026-11-13",
+          "start_hour": 8,
+          "duration_hours": 8.0,
+          "crew": "crew-1",
+          "cost_breakdown_mwh": {
+            "downtime": 2.0,
+            "waiting": 5.6,
+            "risk": 0.0,
+            "total": 7.6
+          },
+          "cost_breakdown_ron": {
+            "downtime": 900.0,
+            "waiting": 2520.0,
+            "risk": 0.0,
+            "total": 3420.0
+          },
+          "alternatives": [],
+          "trace": {}
+        },
+        {
+          "task_id": "T05-bearing-001",
+          "asset_id": "FAN-T05",
+          "date": "2026-11-15",
+          "start_hour": 8,
+          "duration_hours": 6.0,
+          "crew": "crew-2",
+          "cost_breakdown_mwh": {
+            "downtime": 4.5,
+            "waiting": 3.5,
+            "risk": 0.0,
+            "total": 8.0
+          },
+          "cost_breakdown_ron": {
+            "downtime": 2025.0,
+            "waiting": 1575.0,
+            "risk": 0.0,
+            "total": 3600.0
+          },
+          "alternatives": [],
+          "trace": {
+            "moved_reason": "part arrival delayed by 5 days"
+          }
+        },
+        {
+          "task_id": "T01-rev-001",
+          "asset_id": "FAN-T01",
+          "date": "2026-11-12",
+          "start_hour": 8,
+          "duration_hours": 8.0,
+          "crew": "crew-2",
+          "cost_breakdown_mwh": {
+            "downtime": 3.0,
+            "waiting": 0.0,
+            "risk": 0.0,
+            "total": 3.0
+          },
+          "cost_breakdown_ron": {
+            "downtime": 1350.0,
+            "waiting": 0.0,
+            "risk": 0.0,
+            "total": 1350.0
+          },
+          "alternatives": [],
+          "trace": {}
+        }
+      ],
+      "total_mwh": 18.6,
+      "total_ron": 8370.0,
+      "active_total_mwh": 16.1,
+      "active_total_ron": 7245.0,
+      "delta_mwh": 2.5,
+      "delta_ron": 1125.0,
+      "moved_jobs": [
+        "T05-bearing-001"
+      ],
+      "provenance": {
+        "result_id": "res-opt-003",
+        "tool": "optimize_maintenance",
+        "backend": "fixture",
+        "as_of": "2026-11-08",
+        "forecast_run": "2026-11-08T00:00:00Z",
+        "created_at": "2026-11-08T00:05:00Z"
+      }
+    }
+  }
+}
+

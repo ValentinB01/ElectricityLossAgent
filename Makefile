@@ -1,7 +1,7 @@
 # Every step of the producers module, end to end (CLAUDE.md section 13). Run from the repository root.
 PYTHON ?= python
 
-.PHONY: help setup data data-test train eval eval-final plan test clean
+.PHONY: help setup data data-test train eval eval-final plan agent eval-agent demo test clean
 
 help:
 	@echo "setup       install the pinned requirements"
@@ -11,7 +11,10 @@ help:
 	@echo "eval        score on validation and run the dev backtest, into results/"
 	@echo "eval-final  reproduce the test-year results in the README (settings are frozen)"
 	@echo "plan        today's calendar for Fantanele and Calugareni (live Open-Meteo forecast)"
-	@echo "test        optimizer tests"
+	@echo "agent       local FastAPI agent service on 127.0.0.1:8000"
+	@echo "eval-agent  end-to-end agent scenario suite"
+	@echo "demo        Streamlit interface"
+	@echo "test        whole test suite"
 
 setup:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -45,6 +48,15 @@ eval-final: data-test
 
 plan:
 	$(PYTHON) -m src.decision.optimizer --site fantanele calugareni
+
+agent:
+	$(PYTHON) -m uvicorn src.agent.api:app --host 127.0.0.1 --port 8000
+
+eval-agent:
+	$(PYTHON) -m pytest tests/test_agent_scenarios.py
+
+demo:
+	$(PYTHON) -m streamlit run src/app/dashboard.py
 
 test:
 	$(PYTHON) -m pytest

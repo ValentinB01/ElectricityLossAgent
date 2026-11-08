@@ -173,7 +173,13 @@ make setup
 
 **Kaggle token** (for the PV and consumption datasets): create `~/.kaggle/kaggle.json` from your Kaggle account → *Settings* → *API*.
 
-**LLM** *(optional)*: set the environment variable for the chosen provider (see `config/agent.yaml`). Without it, the agent runs in CLI mode.
+**LLM configuration & deterministic mode**:
+The agent supports multiple LLM providers configured via `config/agent.yaml`:
+- **Google Gemini** (default): set `GEMINI_API_KEY` (model: `gemini/gemini-2.5-flash` or `gemini/gemini-1.5-pro`)
+- **OpenAI**: set `OPENAI_API_KEY` (e.g. `gpt-4o`, `gpt-4o-mini`)
+- **Anthropic**: set `ANTHROPIC_API_KEY` (e.g. `claude-3-5-sonnet`)
+
+If no LLM API key is present in the environment, the agent automatically falls back to **deterministic mode**. In deterministic mode, all tool dispatching, Action Gate lifecycle rules, Romanian Jinja2 responses, and numeric grounding work identically without external API calls or network egress.
 
 | Command | What it does |
 |---|---|
@@ -183,9 +189,14 @@ make setup
 | `make eval` | Scores every model on validation against its baseline and runs the development backtest; writes `results/*.json` and the charts |
 | `make eval-final` | Reproduces the test-year results in section 4 (settings are frozen) |
 | `make plan` | Today's maintenance calendar for Fântânele and Călugăreni, from the live Open-Meteo forecast |
-| `make test` | Runs the optimizer tests |
+| `make agent` | Starts the local FastAPI agent service on `127.0.0.1:8000` via Uvicorn |
+| `make eval-agent` | Runs the end-to-end agent scenario evaluation suite (`tests/test_agent_scenarios.py`) |
+| `make demo` | Starts the interface (Streamlit) |
+| `make test` | Runs the whole test suite (optimizer and agent) |
 
-Each script also runs on its own, e.g. `python -m src.producers.expected_power --help`. Coming with the consumers module and the agent: `make agent` (FastAPI) and `make demo` (Streamlit).
+The agent API binds strictly to `127.0.0.1` by default. Check status at `GET http://127.0.0.1:8000/health`, which reports the active mode (`llm` or `deterministic`), model/provider, and per-tool backend bindings.
+
+Each script also runs on its own, e.g. `python -m src.producers.expected_power --help`.
 
 Numeric assumptions (working wind limits, job durations, crew capacity, fault severities) are constants at the top of each module, each commented as an assumption with where the real value would come from.
 

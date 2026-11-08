@@ -1,0 +1,9 @@
+=== SARCINI DE MENTENANȚĂ ÎNREGISTRATE ===
+Total sarcini: {{ tasks | length }}
+
+Listă sarcini:
+{% for t in tasks %}
+  - [{{ t.status | upper }}] {{ t.task_id }} pe {{ t.asset_id }} | Tip: {{ t.type }} | Durată: {{ t.estimated_hours }}h | Prioritate: {{ t.priority }}
+    Descriere: {{ t.description }}
+{% endfor %}
+

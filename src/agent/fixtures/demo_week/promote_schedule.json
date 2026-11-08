@@ -1,0 +1,18 @@
+{
+  "promoted_id": "sched-draft-base",
+  "previous_active_id": "sched-active-001",
+  "status": "active",
+  "total_mwh": 16.1,
+  "total_ron": 7245.0,
+  "delta_mwh": 0.0,
+  "delta_ron": 0.0,
+  "provenance": {
+    "result_id": "res-prom-001",
+    "tool": "promote_schedule",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  }
+}
+

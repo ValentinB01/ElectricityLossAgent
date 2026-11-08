@@ -1,0 +1,46 @@
+{
+  "detections": [
+    {
+      "asset_id": "FAN-T17",
+      "pi_72h": 0.88,
+      "loss_mwh_per_day": 1.4,
+      "loss_ron_per_day": 630.0,
+      "cause": "pitch_fault",
+      "cause_probability": 0.85,
+      "confidence": 0.92,
+      "low_confidence": false,
+      "recommended_action": "repair"
+    },
+    {
+      "asset_id": "FAN-T09",
+      "pi_72h": 0.93,
+      "loss_mwh_per_day": 0.6,
+      "loss_ron_per_day": 270.0,
+      "cause": "icing",
+      "cause_probability": 0.60,
+      "confidence": 0.55,
+      "low_confidence": true,
+      "recommended_action": "inspection"
+    },
+    {
+      "asset_id": "CAL-INV02",
+      "pi_72h": 0.91,
+      "loss_mwh_per_day": 0.8,
+      "loss_ron_per_day": 360.0,
+      "cause": "soiling",
+      "cause_probability": 0.79,
+      "confidence": 0.88,
+      "low_confidence": false,
+      "recommended_action": "repair"
+    }
+  ],
+  "provenance": {
+    "result_id": "res-det-001",
+    "tool": "detect_underperformance",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  }
+}
+

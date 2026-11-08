@@ -1,0 +1,14 @@
+=== EXPLICARE SUSPICIUNE ANOMALIE: {{ household_id }} ===
+Zonă: {{ area }}
+Probabilitate fraudă: {{ theft_probability }}
+Tip semnal: {{ signal_type }}
+
+Comparație grup similar (peer comparison):
+  - Consum gospodărie: {{ peer_comparison.household_kwh }} kWh
+  - Medie grup: {{ peer_comparison.peer_avg_kwh or peer_comparison.avg_kwh }} kWh
+  - Raport anomalie: {{ peer_comparison.anomaly_ratio or peer_comparison.deviation_pct }}
+
+Factori principali de influență:
+{% for factor in top_factors %}
+  - {{ factor.factor }}: {{ factor.description or factor.importance }}
+{% endfor %}

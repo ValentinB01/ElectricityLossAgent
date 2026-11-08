@@ -1,0 +1,12 @@
+=== PROGNOZĂ METEOROLOGICĂ: {{ site_id | upper }} ===
+Orizont: {{ days }} zile
+{% if stale %}Avertisment: Date cache prognoză meteo (vârstă: {{ age_hours }} ore){% endif %}
+
+Rezumat intervale orare:
+{% for h in hourly[:12] %}
+  - {{ h.timestamp }}: Vânt {{ h.wind_speed_ms }} m/s (dir {{ h.wind_direction_deg }}°), Radiație solară {{ h.surface_solar_radiation_wm2 }} W/m², Temp {{ h.temperature_c }}°C
+{% endfor %}
+{% if hourly | length > 12 %}
+  ... și încă {{ hourly | length - 12 }} intervale orare înregistrate.
+{% endif %}
+

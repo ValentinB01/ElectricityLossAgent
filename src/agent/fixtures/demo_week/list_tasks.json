@@ -1,0 +1,93 @@
+{
+  "tasks": [
+    {
+      "task_id": "T17-pitch-001",
+      "asset_id": "FAN-T17",
+      "job_type": "repair",
+      "title": "Reparație unghi calare pale (pitch fault)",
+      "description": "Turbina T17 pierde 1.4 MWh/zi din cauza decalării unghiului de pitch.",
+      "loss_mwh_per_day": 1.4,
+      "loss_ron_per_day": 630.0,
+      "due_date": "2026-11-15",
+      "due_start": "2026-11-08",
+      "due_end": "2026-11-15",
+      "estimated_hours": 8.0,
+      "requires_outage": true,
+      "urgency": "high",
+      "status": "open"
+    },
+    {
+      "task_id": "T05-bearing-001",
+      "asset_id": "FAN-T05",
+      "job_type": "repair",
+      "title": "Verificare rulment generator",
+      "description": "Temperaturi peste medie la rulmentul generatorului T05.",
+      "loss_mwh_per_day": 0.5,
+      "loss_ron_per_day": 225.0,
+      "due_date": "2026-11-14",
+      "due_start": "2026-11-08",
+      "due_end": "2026-11-16",
+      "estimated_hours": 6.0,
+      "requires_outage": true,
+      "urgency": "normal",
+      "status": "open"
+    },
+    {
+      "task_id": "T01-rev-001",
+      "asset_id": "FAN-T01",
+      "job_type": "periodic_revision",
+      "title": "Revizie semestrială",
+      "description": "Inspecție mecanică și electrică periodică de 6 luni.",
+      "loss_mwh_per_day": 0.0,
+      "loss_ron_per_day": 0.0,
+      "due_date": "2026-11-12",
+      "due_start": "2026-11-05",
+      "due_end": "2026-11-15",
+      "estimated_hours": 8.0,
+      "requires_outage": true,
+      "urgency": "normal",
+      "status": "open"
+    },
+    {
+      "task_id": "T09-drone-001",
+      "asset_id": "FAN-T09",
+      "job_type": "inspection",
+      "title": "Inspecție dronă givraj / anemometru",
+      "description": "Detecție cu încredere scăzută (0.55); verificare vizuală fără oprire.",
+      "loss_mwh_per_day": 0.6,
+      "loss_ron_per_day": 270.0,
+      "due_date": "2026-11-10",
+      "due_start": "2026-11-08",
+      "due_end": "2026-11-12",
+      "estimated_hours": 2.0,
+      "requires_outage": false,
+      "urgency": "normal",
+      "status": "open"
+    },
+    {
+      "task_id": "INV02-clean-001",
+      "asset_id": "CAL-INV02",
+      "job_type": "repair",
+      "title": "Curățare module și verificare string",
+      "description": "Depunere praf și posibile stringuri deconectate la Lumina Călugăreni.",
+      "loss_mwh_per_day": 0.8,
+      "loss_ron_per_day": 360.0,
+      "due_date": "2026-11-14",
+      "due_start": "2026-11-08",
+      "due_end": "2026-11-16",
+      "estimated_hours": 4.0,
+      "requires_outage": true,
+      "urgency": "normal",
+      "status": "open"
+    }
+  ],
+  "provenance": {
+    "result_id": "res-tasks-001",
+    "tool": "list_tasks",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  }
+}
+

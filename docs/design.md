@@ -2,7 +2,7 @@
 
 7 November 2026 · Valentin
 
-> This document explains **why** the system is designed this way. Exact build specs (features, parameters, formulas, schemas) are in [`CLAUDE.md`](../CLAUDE.md); the public overview, data licences and results are in the [README](../README.md).
+> This document explains **why** the system is designed this way. Exact build specs (features, parameters, formulas, schemas) are in [`CLAUDE.md`](../CLAUDE.md); the public overview, data licences and results are in the [README](../README.md). For module integration contracts, see [`agent-contract.md`](agent-contract.md).
 
 ## In short
 
@@ -164,7 +164,7 @@ Algorithm: quantile LightGBM. Baseline: median of the same month in previous yea
 
 ## The shared agent layer
 
-The LLM sits above the two modules, calls tools and explains results. Any change of plan goes through the optimizer or the inspection queue. Tools are listed in the [README](../README.md#33-llm-agent).
+The LLM sits above the two modules, calls tools and explains results. Any change of plan goes through the optimizer or the inspection queue. Tools are listed in the [README](../README.md#33-llm-agent). The agent's architecture (pipeline, tool contracts, confirmation gate, grounding check, security, UI) is designed in the OpenSpec change [`add-llm-agent`](../openspec/changes/add-llm-agent/design.md).
 
 **The single view of losses:** a table of losses by source, in MWh and RON (the price is a parameter):
 

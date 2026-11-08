@@ -1,0 +1,16 @@
+{
+  "alert_id": "alt-t17-001",
+  "level": "warning",
+  "message": "Avertizare: subperformanță critică T17 pitch fault (pierdere 1.4 MWh/zi). Programat pentru reparație.",
+  "asset_id": "FAN-T17",
+  "logged_to": "results/alerts.log",
+  "provenance": {
+    "result_id": "res-alt-001",
+    "tool": "send_alert",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  }
+}
+

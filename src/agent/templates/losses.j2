@@ -1,0 +1,8 @@
+=== PRIVIRE DE ANSAMBLU ASUPRA PIERDERILOR ({{ period | upper }}) ===
+Perioadă: {{ period }}
+Pierdere totală: {{ total_mwh }} MWh ({{ total_ron }} RON)
+
+Categorii și surse de pierderi:
+{% for r in rows %}
+  - [{{ r.category }}] {{ r.description }}: {{ r.mwh }} MWh ({{ r.ron }} RON) | Sursă: {{ r.source_ref }}
+{% endfor %}
