@@ -24,7 +24,9 @@ server:
   host: "127.0.0.1"
   port: 8000
 
-# Per-tool backend map (fixture or live)
+# Per-tool backend map (fixture or live). "live" means real models and data answer (src/agent/backends/live.py);
+# "fixture" means the demo pack in src/agent/fixtures/demo_week. The consumer tools stay on fixture until the
+# SGCC model is connected. AGENT_BACKENDS=fixture forces every tool to fixture (tests, offline demo).
 backends:
   get_weather_forecast: "live"
   predict_expected_production: "live"
@@ -32,9 +34,9 @@ backends:
   compute_cost_map: "live"
   list_tasks: "live"
   optimize_maintenance: "live"
-  predict_expected_consumption: "live"
-  score_households: "live"
-  build_inspection_list: "live"
+  predict_expected_consumption: "fixture"
+  score_households: "fixture"
+  build_inspection_list: "fixture"
   loss_overview: "live"
   explain: "live"
   update_from_field_report: "live"

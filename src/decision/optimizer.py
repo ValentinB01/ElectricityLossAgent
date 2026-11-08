@@ -21,9 +21,7 @@ import datetime as dt
 import hashlib
 import json
 import math
-from pathlib import Path
 from dataclasses import dataclass, field
-import uuid
 
 import numpy as np
 import pandas as pd
@@ -59,7 +57,7 @@ class Task:
     site: str
     kind: str                                  # revision, repair, inspection
     duration_h: float
-    due_start: dt.date | None = None           # Tolerance window, for revisions
+    due_start: dt.date | None = None           # Tolerance window, for revisions; for other jobs, "not before" (a deferral from a field report)
     due_end: dt.date | None = None
     loss_mwh_per_day: float = 0.0              # From M2: what each day of waiting costs
     p_fail_by_day: list | None = None          # From M3; None until M3 exists, so the risk term is 0
@@ -231,6 +229,8 @@ def _best_on_day(task: Task, d: int, c: Constraints, grid: CostGrid, b: Bookings
     day = grid.date(d)
     if task.kind == "revision" and task.due_end and task.due_end >= c.today and not (task.due_start <= day <= task.due_end):
         return None, "outside the revision's window"
+    if task.kind != "revision" and task.due_start and day < task.due_start:
+        return None, f"deferred until {task.due_start}"
     if grid.ok.get(task.turbine) is None:
         return None, "no cost data for this turbine"
     s0, s1 = task.hours or c.shift
@@ -262,7 +262,9 @@ def _plan_inspection(task: Task, c: Constraints, grid: CostGrid, b: Bookings) ->
     rejected = []
     for d in range(grid.days):
         g = grid.gust_ok.get(task.turbine)
-        if b.inspections.get(d, 0) >= c.inspections_per_day:
+        if task.due_start and grid.date(d) < task.due_start:
+            rejected.append({"day": d, "reason": f"deferred until {task.due_start}"})
+        elif b.inspections.get(d, 0) >= c.inspections_per_day:
             rejected.append({"day": d, "reason": "inspection team fully booked"})
         elif g is None or not g[d, s0:s1].any():
             rejected.append({"day": d, "reason": "gusts too strong to fly, or outside the forecast"})
@@ -415,35 +417,46 @@ def replayed_findings(site: str, today: dt.date) -> list[dict]:
     return found
 
 
-def plan(sites: list[str], unavailable: list | None = None) -> dict:
-    """One calendar for one or more sites: wind costs from downtime_cost, solar costs from solar, each site's replayed findings and revisions."""
+REPLAY_NOTE = "Findings are replayed, not live PPC data: wind from Kelmarsh, solar from Kaggle plant 1, both with injected faults."
+
+
+def plan_inputs(sites: list[str]) -> dict:
+    """Everything the calendar needs, before optimizing: today's forecast, the cost map (M4), the replayed M2 findings and the jobs.
+    Separate from plan() so the agent can compute it once and re-optimize under new constraints in milliseconds."""
     from src.producers import solar
     tzs = {downtime_cost.SITES[x]["tz"] for x in sites}
     if len(tzs) > 1:
         raise SystemExit(f"Sites in one calendar must share a time zone, got {sorted(tzs)}")
     tz, now = tzs.pop(), pd.Timestamp.now(tz="UTC").floor("h").tz_localize(None)
     today = pd.Timestamp.now(tz=tz).date()
-    c = Constraints(today, crews_per_day=CREWS_PER_DAY * len(sites), unavailable=unavailable or [])  # Each site keeps its own crews.
-    maps, tasks, findings, skipped, metas = [], [], [], [], {}
+    maps, tasks, findings, skipped, metas, weather = [], [], [], [], {}, {}
     for site in sites:
         is_solar = downtime_cost.SITES[site].get("type", "wind") == "pv"
         w, metas[site] = downtime_cost.get_forecast(site, solar.PV_FORECAST_VARS if is_solar else downtime_cost.FORECAST_VARS)
+        weather[site] = w
         cm = solar.cost_map(site, w) if is_solar else downtime_cost.cost_map(site, w)
-        maps.append(cm[cm.hour_utc >= now])
+        maps.append(cm[cm.hour_utc >= now].assign(site=site))
         found = solar.replayed_findings(site, today) if is_solar else replayed_findings(site, today)
-        findings += found
+        findings += [{**x, "site": site} for x in found]
         if is_solar:
             rain = solar.days_to_rain(w, tz, today)
             metas[site]["days_to_rain"] = rain
             tasks += tasks_from_findings(found, site, today, rain, skipped)
         else:
-            tasks += generate_revisions(list(downtime_cost.fleet(site).turbine), site, today, today + dt.timedelta(days=c.horizon_days - 1)) + tasks_from_findings(found, site, today)
-    cm = pd.concat(maps, ignore_index=True)
+            tasks += generate_revisions(list(downtime_cost.fleet(site).turbine), site, today, today + dt.timedelta(days=HORIZON_DAYS - 1)) + tasks_from_findings(found, site, today)
     meta = {"fetched_utc": min(m["fetched_utc"] for m in metas.values()), "stale": any(m.get("stale") for m in metas.values()), "sites": metas}
-    s = optimize(tasks, cm, c, tz, meta)
-    s["unscheduled"] += skipped
-    s["inputs"] = {"m2_findings": [{k: v for k, v in x.items() if k != "reasons"} for x in findings],
-                   "note": "Findings are replayed, not live PPC data: wind from Kelmarsh, solar from Kaggle plant 1, both with injected faults."}
+    return {"sites": list(sites), "tz": tz, "today": today, "cost_map": pd.concat(maps, ignore_index=True), "tasks": tasks, "findings": findings,
+            "skipped": skipped, "forecast": meta, "weather": weather}
+
+
+def plan(sites: list[str], unavailable: list | None = None) -> dict:
+    """One calendar for one or more sites: wind costs from downtime_cost, solar costs from solar, each site's replayed findings and revisions."""
+    x = plan_inputs(sites)
+    c = Constraints(x["today"], crews_per_day=CREWS_PER_DAY * len(sites), unavailable=unavailable or [])  # Each site keeps its own crews.
+    s = optimize(x["tasks"], x["cost_map"], c, x["tz"], x["forecast"])
+    s["unscheduled"] += x["skipped"]
+    s["inputs"] = {"m2_findings": [{k: v for k, v in f.items() if k != "reasons"} for f in x["findings"]], "note": REPLAY_NOTE}
+    cm = x["cost_map"]
     name = "_".join(sites)
     write_result(f"schedule_{name}", s)
     _plot(s, cm, name)
@@ -497,255 +510,6 @@ def _plot(s: dict, cm: pd.DataFrame, name: str) -> None:
              f"Crews, limits and job lengths are assumptions.", fontsize=8, color=C["muted"])
     fig.tight_layout(rect=(0, 0.03, 1, 1))
     save_figure(fig, f"schedule_{name}")
-
-
-# ---------- Live Agent Adapter ----------
-def schedule_maintenance(
-    site_id: str | None = None,
-    as_of: str = "2026-11-08",
-    constraints: dict | None = None,
-    store: any = None,
-) -> dict:
-    """Live contract entrypoint for maintenance optimization (docs/agent-contract.md §2.6).
-
-    Runs the greedy decision optimizer on tasks and cost map while observing constraints:
-    - Crew unavailability: e.g. crew-2 off on 2026-11-12 (Thursday / joi)
-    - Deferrals: e.g. T05-bearing-001 deferred 5 days
-    - Capacity constraints: crews_per_day
-    Computes total MWh, RON, deltas against active plan, and list of moved jobs.
-    """
-    from src.agent.schemas.common import ErrorCode, StructuredError
-
-    today = dt.date.fromisoformat(as_of) if as_of else dt.date(2026, 11, 8)
-    c_dict = constraints or {}
-
-    # Validate against unknown constraint keys
-    known_constraint_keys = {
-        "crews_per_day", "unavailable", "crew", "crew_id",
-        "date", "day", "available", "defer_days", "task_id", "defer_task_id",
-    }
-    unknown_keys = set(c_dict.keys()) - known_constraint_keys
-    if unknown_keys:
-        return StructuredError(
-            code=ErrorCode.UNSUPPORTED_SCENARIO,
-            message=f"Live optimizer only supports known constraints: {sorted(list(known_constraint_keys))}",
-            details={"constraints": constraints, "unknown_keys": sorted(list(unknown_keys))},
-        )
-
-    crews_per_day = int(c_dict.get("crews_per_day", CREWS_PER_DAY))
-
-    # 1. Parse crew unavailability
-    unavailable = []
-    raw_unavail = c_dict.get("unavailable", [])
-    if isinstance(raw_unavail, list):
-        for item in raw_unavail:
-            if isinstance(item, dict):
-                c_name = item.get("crew") or item.get("crew_id")
-                if c_name in ("1", "2"):
-                    c_name = f"crew-{c_name}"
-                elif c_name in ("crew_1", "crew_2"):
-                    c_name = c_name.replace("_", "-")
-                d_val = str(item.get("date", item.get("day", ""))).lower()
-                if any(tok in d_val for tok in ("thursday", "joi", "2026-11-12")):
-                    d_val = "2026-11-12"
-                if c_name:
-                    unavailable.append({"crew": c_name, "date": d_val})
-
-    flat_crew = c_dict.get("crew") or c_dict.get("crew_id")
-    if flat_crew:
-        if flat_crew in ("1", "2"):
-            flat_crew = f"crew-{flat_crew}"
-        elif flat_crew in ("crew_1", "crew_2"):
-            flat_crew = flat_crew.replace("_", "-")
-        d_val = str(c_dict.get("date", c_dict.get("day", ""))).lower()
-        if any(tok in d_val for tok in ("thursday", "joi", "2026-11-12")):
-            d_val = "2026-11-12"
-        if not any(u["crew"] == flat_crew and u["date"] == d_val for u in unavailable):
-            unavailable.append({"crew": flat_crew, "date": d_val})
-
-    # 2. Parse task deferrals
-    defer_days_map = {}
-    defer_days = c_dict.get("defer_days")
-    task_id = c_dict.get("task_id")
-    if isinstance(defer_days, dict):
-        defer_days_map.update(defer_days)
-    elif isinstance(defer_days, (int, float)):
-        tid = task_id or "T05-bearing-001"
-        defer_days_map[tid] = int(defer_days)
-
-    # 3. Load tasks from fixture pack or portfolio
-    fixtures_file = Path(__file__).resolve().parent.parent / "agent" / "fixtures" / "demo_week" / "list_tasks.json"
-    raw_tasks = []
-    if fixtures_file.exists():
-        with open(fixtures_file, "r", encoding="utf-8") as f:
-            raw_tasks = json.load(f).get("tasks", [])
-
-    tasks: list[Task] = []
-    # Background reservation task to book crew-1 on Thursday 2026-11-12
-    tasks.append(
-        Task(
-            task_id="T02-rev-001",
-            turbine="FAN-T02",
-            site="fantanele",
-            kind="revision",
-            duration_h=8.0,
-            due_start=dt.date(2026, 11, 12),
-            due_end=dt.date(2026, 11, 12),
-        )
-    )
-
-    # Target outage tasks for portfolio scheduling
-    target_task_ids = {"T17-pitch-001", "T05-bearing-001", "T01-rev-001"}
-    for t in raw_tasks:
-        tid = t["task_id"]
-        if tid not in target_task_ids:
-            continue
-        asset = t["asset_id"]
-        if site_id == "fantanele" and not asset.startswith("FAN-"):
-            continue
-        if site_id == "calugareni" and not asset.startswith("CAL-"):
-            continue
-
-        jtype = t.get("job_type", "repair")
-        loss = float(t.get("loss_mwh_per_day", 0.0))
-        dur = float(t.get("estimated_hours", 8.0))
-        d_start = dt.date.fromisoformat(t["due_start"]) if t.get("due_start") else None
-        d_end = dt.date.fromisoformat(t["due_end"]) if t.get("due_end") else None
-
-        if tid in defer_days_map:
-            shift = defer_days_map[tid]
-            if d_start:
-                d_start = d_start + dt.timedelta(days=shift)
-            else:
-                d_start = today + dt.timedelta(days=shift)
-            if d_end:
-                d_end = d_end + dt.timedelta(days=shift)
-
-        kind = "revision" if "rev" in jtype else ("inspection" if jtype == "inspection" else "repair")
-        tasks.append(
-            Task(
-                task_id=tid,
-                turbine=asset,
-                site="fantanele" if asset.startswith("FAN-") else "calugareni",
-                kind=kind,
-                duration_h=dur,
-                due_start=d_start,
-                due_end=d_end,
-                loss_mwh_per_day=loss,
-                job_type=jtype,
-            )
-        )
-
-    # 4. Calibrated cost map matching the demo week portfolio
-    rows = []
-    for d in range(10):
-        for h in range(24):
-            ts = pd.Timestamp(today) + pd.Timedelta(days=d, hours=h)
-            # T17 costs: Day 1 (18 MWh / 8h) vs Day 5 (2 MWh / 8h)
-            c_t17 = 18.0 / 8 if d == 1 else (2.0 / 8 if d == 5 else 50.0 / 8)
-            # T05 costs: Day 2 (4.5 MWh / 6h), Day 7 (4.5 MWh / 6h)
-            c_t05 = 4.5 / 6 if d in (2, 7) else 30.0 / 6
-            # T01 costs: Day 4 (3.0 MWh / 8h), Day 6 (4.2 MWh / 8h)
-            c_t01 = 3.0 / 8 if d == 4 else (4.2 / 8 if d == 6 else 30.0 / 8)
-            # Background booking on Day 4
-            c_t02 = 1.0 / 8 if d == 4 else 50.0 / 8
-
-            rows.append({"turbine": "FAN-T17", "hour_utc": ts, "cost_mwh": c_t17, "cost_mwh_p90": c_t17, "workable": True, "v_hub": 5.0, "gust_ms": 5.0})
-            rows.append({"turbine": "FAN-T05", "hour_utc": ts, "cost_mwh": c_t05, "cost_mwh_p90": c_t05, "workable": True, "v_hub": 5.0, "gust_ms": 5.0})
-            rows.append({"turbine": "FAN-T01", "hour_utc": ts, "cost_mwh": c_t01, "cost_mwh_p90": c_t01, "workable": True, "v_hub": 5.0, "gust_ms": 5.0})
-            rows.append({"turbine": "FAN-T02", "hour_utc": ts, "cost_mwh": c_t02, "cost_mwh_p90": c_t02, "workable": True, "v_hub": 5.0, "gust_ms": 5.0})
-
-    cmap = pd.DataFrame(rows)
-
-    # 5. Run live optimizer
-    c = Constraints(today=today, crews_per_day=crews_per_day, unavailable=unavailable)
-    opt_res = optimize(tasks, cmap, c, tz="Europe/Bucharest")
-
-    # 6. Format output into OptimizeMaintenanceOutput structure
-    target_jobs = [j for j in opt_res["jobs"] if j["task_id"] != "T02-rev-001"]
-    formatted_jobs = []
-    baseline_dates = {"T17-pitch-001": "2026-11-13", "T05-bearing-001": "2026-11-10", "T01-rev-001": "2026-11-12"}
-    moved_jobs = []
-
-    for j in target_jobs:
-        tid = j["task_id"]
-        c_mwh = dict(j["cost_breakdown_mwh"])
-        # Calibrate waiting to the 7.6 / 19.4 demo benchmark
-        if tid == "T17-pitch-001":
-            c_mwh["waiting"] = 5.6
-            c_mwh["total"] = round(c_mwh["downtime"] + c_mwh["waiting"], 3)
-        elif tid == "T05-bearing-001" and tid in defer_days_map:
-            c_mwh["waiting"] = 3.5
-            c_mwh["total"] = round(c_mwh["downtime"] + c_mwh["waiting"], 3)
-
-        c_ron = {k: round(v * 450.0, 2) for k, v in c_mwh.items()}
-        alts = []
-        if tid == "T17-pitch-001":
-            alts.append({
-                "date": "2026-11-09",
-                "total_mwh": 19.4,
-                "total_ron": 8730.0,
-                "why_not": "strong wind: 18 MWh downtime",
-            })
-
-        if tid in baseline_dates and j["date"] != baseline_dates[tid]:
-            moved_jobs.append(tid)
-
-        formatted_jobs.append({
-            "task_id": tid,
-            "asset_id": j["turbine"],
-            "date": j["date"],
-            "start_hour": j["start_hour"],
-            "duration_hours": float(j["duration_h"]),
-            "crew": j["crew"],
-            "cost_breakdown_mwh": c_mwh,
-            "cost_breakdown_ron": c_ron,
-            "alternatives": alts,
-            "trace": j.get("trace", {}),
-        })
-
-    total_mwh = round(sum(j["cost_breakdown_mwh"]["total"] for j in formatted_jobs), 4)
-    total_ron = round(total_mwh * 450.0, 2)
-
-    # 7. Deltas against active schedule
-    active_sched = store.get_active_schedule() if store else None
-    active_mwh = float(active_sched.get("total_mwh", 16.1)) if active_sched else 16.1
-    active_ron = float(active_sched.get("total_ron", 7245.0)) if active_sched else 7245.0
-
-    delta_mwh = round(total_mwh - active_mwh, 4)
-    delta_ron = round(total_ron - active_ron, 2)
-
-    sched_id = "sched-draft-base"
-    if any(u["crew"] in ("crew-2", "crew_2") for u in unavailable):
-        sched_id = "sched-draft-crew2-off"
-    elif "T05-bearing-001" in defer_days_map:
-        sched_id = "sched-draft-t05-defer"
-    elif c_dict and c_dict != {"crews_per_day": 2}:
-        sched_id = f"sched-draft-{uuid.uuid4().hex[:8]}"
-
-    parent_id = active_sched["id"] if active_sched else "sched-active-001"
-
-    return {
-        "schedule_id": sched_id,
-        "status": "draft",
-        "parent_schedule_id": parent_id,
-        "jobs": formatted_jobs,
-        "total_mwh": total_mwh,
-        "total_ron": total_ron,
-        "active_total_mwh": active_mwh,
-        "active_total_ron": active_ron,
-        "delta_mwh": delta_mwh,
-        "delta_ron": delta_ron,
-        "moved_jobs": moved_jobs,
-        "provenance": {
-            "result_id": f"res-opt-{uuid.uuid4().hex[:6]}",
-            "tool": "optimize_maintenance",
-            "backend": "live",
-            "as_of": as_of,
-            "forecast_run": f"{as_of}T00:00:00Z",
-            "created_at": f"{as_of}T00:05:00Z",
-        },
-    }
 
 
 if __name__ == "__main__":

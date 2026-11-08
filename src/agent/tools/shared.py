@@ -84,6 +84,15 @@ def explain_llm_view(out: ExplainOutput) -> Dict[str, Any]:
                 for a in exp.alternatives
             ],
         }
+        # Live explanations carry the optimizer's reason and the model outputs behind the job (M2 cause, SHAP reasons).
+        extra = exp.model_extra or {}
+        if extra.get("why"):
+            view["scheduled_job"]["why"] = extra["why"]
+        trace_keys = ("m2_cause", "m2_proba", "m2_loss_mwh_day", "m2_pi_72h", "m2_reasons", "bundled_with", "earliest_option",
+                      "deferred_days", "deferred_by", "converted_to_inspection", "forced_by_max_deferral", "due_date", "source")
+        trace = {k: exp.trace[k] for k in trace_keys if k in exp.trace}
+        if trace:
+            view["scheduled_job"]["trace"] = trace
     elif out.household_explanation:
         hh = out.household_explanation
         view["household"] = {
@@ -162,9 +171,9 @@ def create_work_orders_llm_view(out: CreateWorkOrdersOutput) -> Dict[str, Any]:
     output_schema=CreateWorkOrdersOutput,
     llm_view=create_work_orders_llm_view,
 )
-def create_work_orders(args: Dict[str, Any], backend: str = "fixture") -> Any:
+def create_work_orders(args: Dict[str, Any], backend: str = "fixture", store: Any = None) -> Any:
     if backend == "live":
-        return _live_backend.call("create_work_orders", args)
+        return _live_backend.call("create_work_orders", args, store=store)
     return _fixture_backend.call("create_work_orders", args)
 
 

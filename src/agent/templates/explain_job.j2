@@ -1,14 +1,22 @@
 === EXPLICARE DECIZIE INTERVENȚIE: {{ task_id }} ===
 Echipament: {{ asset_id }} | Data: {{ date }} | Echipa: {{ crew }}
-
+{% if why %}
+Motivul deciziei: {{ why }}
+{% endif %}
 Defalcare costuri:
   - Pierdere producție (oportunitate): {{ cost_breakdown_mwh.downtime if cost_breakdown_mwh else cost_breakdown.opportunity_loss_mwh }} MWh ({{ cost_breakdown_ron.downtime if cost_breakdown_ron else cost_breakdown.opportunity_loss_ron }} RON)
-  - Cost direct intervenție: {{ cost_breakdown.direct_repair_cost_ron or 0 }} RON
+{% if cost_breakdown_mwh and cost_breakdown_mwh.waiting %}  - Pierdere cât se așteaptă reparația: {{ cost_breakdown_mwh.waiting }} MWh ({{ cost_breakdown_ron.waiting }} RON)
+{% endif %}  - Cost direct intervenție: {{ cost_breakdown.direct_repair_cost_ron or 0 }} RON
   - Cost total: {{ cost_breakdown_mwh.total if cost_breakdown_mwh else cost_breakdown.total_mwh }} MWh ({{ cost_breakdown_ron.total if cost_breakdown_ron else cost_breakdown.total_ron }} RON)
-
+{% if trace and trace.m2_cause %}
+Proveniență (model M2): cauza {{ trace.m2_cause }} (probabilitate {{ trace.m2_proba }}), pierdere {{ trace.m2_loss_mwh_day }} MWh/zi, PI 72h {{ trace.m2_pi_72h }}
+{% for r in trace.m2_reasons %}  - factor: {{ r.feature }} = {{ r.value }} (contribuție {{ r.contribution }})
+{% endfor %}{% elif trace and trace.source %}
+Proveniență: {{ trace.source }}{% if trace.due_date %}, scadentă {{ trace.due_date }}{% endif %}
+{% endif %}
 Alternative analizate:
 | Dată | Fereastră | Echipă | Cost MWh | Cost RON | Diferență MWh | Diferență RON | Motiv (why_not) |
 |---|---|---|---|---|---|---|---|
-{% for alt in alternatives %}
-| {{ alt.date }} | {{ alt.window_start }}-{{ alt.window_end }} | {{ alt.crew }} | {{ alt.cost_mwh or alt.total_mwh }} | {{ alt.cost_ron or alt.total_ron }} | {{ alt.delta_mwh }} | {{ alt.delta_ron }} | {{ alt.why_not }} |
+{% for alt in alternatives %}{% set m = alt.cost_mwh if alt.cost_mwh is defined and alt.cost_mwh is not none else alt.total_mwh %}{% set r = alt.cost_ron if alt.cost_ron is defined and alt.cost_ron is not none else alt.total_ron %}
+| {{ alt.date }} | {{ alt.window_start }}-{{ alt.window_end }} | {{ alt.crew }} | {{ '—' if m is none else m }} | {{ '—' if r is none else r }} | {{ alt.delta_mwh }} | {{ alt.delta_ron }} | {{ alt.why_not }} |
 {% endfor %}

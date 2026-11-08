@@ -45,6 +45,20 @@ def generate_action_summary(tool_name: str, args: Dict[str, Any]) -> str:
     return f"Execuție acțiune {tool_name} cu parametri specificați"
 
 
+FIXTURE_TASK_IDS = {"T17-pitch-001", "T05-bearing-001", "T01-rev-001", "T09-drone-001", "INV02-clean-001"}
+
+
+def _known_task_ids() -> set:
+    """Task ids a field report may name: today's live jobs when field reports run live, else the demo fixture's."""
+    if load_agent_config().backends.get("update_from_field_report") != "live":
+        return FIXTURE_TASK_IDS
+    try:
+        from src.agent.backends.live import DEFAULT_LIVE_BACKEND
+        return DEFAULT_LIVE_BACKEND.known_task_ids()
+    except Exception:  # Live data unavailable: no task can be confirmed, so the report goes to a human
+        return set()
+
+
 class ActionGate:
     """Action Gate managing pending action state machine, human confirmation, and post-hooks."""
 
@@ -60,7 +74,7 @@ class ActionGate:
         raw_text = args.get("raw_text") or args.get("text") or ""
         confidence = float(args.get("confidence", 1.0))
 
-        known_tasks = {"T17-pitch-001", "T05-bearing-001", "T01-rev-001", "T09-drone-001", "INV02-clean-001"}
+        known_tasks = _known_task_ids()
         valid_status = {"done", "deferred", "needs_part", "not_found"}
 
         task_ok = task_id in known_tasks
@@ -441,7 +455,7 @@ def process_field_report(args: Dict[str, Any]) -> Dict[str, Any]:
             "result_id": f"res-fld-{uuid.uuid4().hex[:6]}",
             "tool": "update_from_field_report",
             "backend": "live",
-            "as_of": "2026-11-08",
+            "as_of": datetime.now(timezone.utc).date().isoformat(),
             "created_at": datetime.now(timezone.utc).isoformat(),
         },
     }
@@ -479,7 +493,7 @@ def generate_work_orders(schedule_id: str) -> Dict[str, Any]:
             "result_id": f"res-wo-{uuid.uuid4().hex[:6]}",
             "tool": "create_work_orders",
             "backend": "live",
-            "as_of": "2026-11-08",
+            "as_of": datetime.now(timezone.utc).date().isoformat(),
             "created_at": datetime.now(timezone.utc).isoformat(),
         },
     }
@@ -492,7 +506,7 @@ def dispatch_alert(level: str, message: str, asset_id: str) -> Dict[str, Any]:
     log_path = Path("results/alerts.log")
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "a", encoding="utf-8") as f:
-        f.write(f"[{now}] [{level.upper()}] [{asset_id}] {message}\n")
+        f.write(f"[{now}] [{level.upper()}] asset={asset_id} msg={message}\n")  # Same line format as the fixture backend
 
     return {
         "alert_id": alert_id,
@@ -504,7 +518,7 @@ def dispatch_alert(level: str, message: str, asset_id: str) -> Dict[str, Any]:
             "result_id": f"res-alt-{uuid.uuid4().hex[:6]}",
             "tool": "send_alert",
             "backend": "live",
-            "as_of": "2026-11-08",
+            "as_of": datetime.now(timezone.utc).date().isoformat(),
             "created_at": now,
         },
     }
@@ -527,28 +541,9 @@ def promote_schedule_to_active(draft_id: str, store: Optional[AuditStore] = None
                 "result_id": f"res-prm-{uuid.uuid4().hex[:6]}",
                 "tool": "promote_schedule",
                 "backend": "live",
-                "as_of": "2026-11-08",
+                "as_of": datetime.now(timezone.utc).date().isoformat(),
                 "created_at": datetime.now(timezone.utc).isoformat(),
             },
         }
-    except Exception:
-        active = active_store.get_active_schedule()
-        prev_id = active["id"] if active else "sched-active-001"
-        return {
-            "promoted_id": draft_id,
-            "previous_active_id": prev_id,
-            "status": "active",
-            "total_mwh": 16.1,
-            "total_ron": 7245.0,
-            "delta_mwh": 0.0,
-            "delta_ron": 0.0,
-            "provenance": {
-                "result_id": f"res-prm-{uuid.uuid4().hex[:6]}",
-                "tool": "promote_schedule",
-                "backend": "live",
-                "as_of": "2026-11-08",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            },
-        }
-
-
+    except Exception as e:  # Never report a promotion that did not happen
+        return StructuredError(code=ErrorCode.UNKNOWN_ITEM, message=f"Could not promote '{draft_id}': {e}", item_id=draft_id)
