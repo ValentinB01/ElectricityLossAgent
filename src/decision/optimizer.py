@@ -320,7 +320,7 @@ def optimize(tasks: list[Task], cost_map: pd.DataFrame, c: Constraints, tz: str 
             options = [earliest]
         # Grouping (CLAUDE.md 9.6): a repair done inside the revision's stop costs no extra downtime.
         rev = revisions.get(task.turbine)
-        if task.kind == "repair" and rev and rev["duration_h"] >= task.duration_h and not forced:
+        if task.kind == "repair" and rev and rev["duration_h"] >= task.duration_h and not forced and not (task.due_start and grid.date(rev["day"]) < task.due_start):
             options.append({"day": rev["day"], "start_hour": rev["start_hour"], "hours": [], "crew": rev["crew"], "cost": _breakdown(task, grid, [], rev["day"]), "bundled_with": rev["task_id"]})
         if not options:
             unscheduled.append({"task_id": task.task_id, "reason": reasons[0]["reason"] if reasons else "no feasible slot",
@@ -350,7 +350,7 @@ def optimize(tasks: list[Task], cost_map: pd.DataFrame, c: Constraints, tz: str 
             revisions[task.turbine] = {"task_id": task.task_id, "crew": chosen["crew"], "start_hour": chosen["start_hour"], "day": chosen["day"], "duration_h": task.duration_h}
     jobs.sort(key=lambda j: (j["date"], j["start_hour"], j["task_id"]))
     totals = {k: round(sum(j["cost_breakdown_mwh"][k] for j in jobs), 3) for k in ("downtime", "waiting", "risk", "total")}
-    key = json.dumps([[t.task_id, t.loss_mwh_per_day, t.duration_h] for t in tasks] + [c.today.isoformat(), c.unavailable, c.crews_per_day], default=str)
+    key = json.dumps([[t.task_id, t.loss_mwh_per_day, t.duration_h, t.due_start] for t in tasks] + [c.today.isoformat(), c.unavailable, c.crews_per_day], default=str)
     return {"schedule_id": hashlib.sha1(key.encode()).hexdigest()[:10], "as_of": c.today.isoformat(), "horizon_days": c.horizon_days, "timezone": tz,
             "constraints": {"crews_per_day": c.crews_per_day, "hours_per_crew": c.hours_per_crew, "shift_local": list(c.shift), "unavailable": c.unavailable},
             "forecast": forecast or {}, "totals_mwh": totals, "trips": len(b.trips), "warnings": warnings, "jobs": jobs, "unscheduled": unscheduled}
