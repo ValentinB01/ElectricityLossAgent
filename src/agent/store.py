@@ -361,6 +361,8 @@ class AuditStore:
                 results.append(item)
             return results
 
+    get_pending_actions = list_pending_actions
+
     # --- Schedules ---
 
     def store_schedule(

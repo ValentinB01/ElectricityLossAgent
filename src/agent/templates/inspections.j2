@@ -1,0 +1,9 @@
+=== LISTĂ INSPECȚII PE TEREN (ECHIPA: {{ crew }}) ===
+Număr inspecții: {{ inspections | length }}
+
+Program inspecții:
+{% for insp in inspections %}
+  - [Rang {{ insp.rank }} | {{ insp.priority | upper }}] {{ insp.household_id }} ({{ insp.area }}) | Echipă: {{ insp.assigned_crew }}
+    Probabilitate: {{ insp.theft_probability }} | Tip semnal: {{ insp.signal_type }}
+    Pierdere estimată: {{ insp.monthly_loss_kwh }} kWh ({{ insp.monthly_loss_ron }} RON) | Recuperare estimată: {{ insp.expected_recovery_ron }} RON
+{% endfor %}

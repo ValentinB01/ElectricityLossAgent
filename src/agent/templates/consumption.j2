@@ -1,0 +1,8 @@
+=== CONSUM AȘTEPTAT (PROGNOZĂ CONSUMATORI) ===
+Gospodării: {{ predictions | map(attribute='household_id') | unique | list | join(', ') }}
+
+Prognoză lunară:
+{% for p in predictions %}
+  - {{ p.household_id }} (Luna {{ p.month }}): P50 = {{ p.expected_kwh_p50 }} kWh (Interval P10-P90: {{ p.expected_kwh_p10 }} - {{ p.expected_kwh_p90 }} kWh)
+{% endfor %}
+

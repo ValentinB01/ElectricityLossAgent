@@ -1,0 +1,11 @@
+=== PLAN MENTENANȚĂ ACTIV: {{ site_id | upper }} ===
+Plan ID: {{ schedule_id }}
+Cost total oportunitate: {{ total_mwh }} MWh ({{ total_ron }} RON)
+Data de referință: {{ as_of }}
+
+Program intervenții echipe:
+{% for job in jobs %}
+  - Data: {{ job.date }} | Echipa: {{ job.crew }} | Activ: {{ job.asset_id }} | Sarcină: {{ job.task_id }}
+    Fereastră: {{ job.window_start }} - {{ job.window_end }} | Pierdere: {{ job.cost_mwh }} MWh ({{ job.cost_ron }} RON)
+{% endfor %}
+

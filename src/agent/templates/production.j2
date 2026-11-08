@@ -1,0 +1,8 @@
+=== PRODUCȚIE AȘTEPTATĂ (PROGNOZĂ) ===
+Echipamente analizate: {{ predictions | map(attribute='asset_id') | unique | list | join(', ') }}
+
+Valori prognozate (eșantion):
+{% for p in predictions[:10] %}
+  - {{ p.timestamp }} [{{ p.asset_id }}]: P50 = {{ p.expected_kw_p50 }} kW (Interval P10-P90: {{ p.expected_kw_p10 }} - {{ p.expected_kw_p90 }} kW)
+{% endfor %}
+

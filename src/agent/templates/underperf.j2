@@ -1,0 +1,10 @@
+=== DETECȚIE SUBPERFORMANȚĂ ECHIPAMENTE ===
+Site / Filtru: {{ site_id }}
+Număr anomalii detectate: {{ detections | length }}
+
+Echipamente subperformante:
+{% for d in detections %}
+  - Echipament: {{ d.asset_id }} | Cauză: {{ d.cause }} (probabilitate: {{ d.cause_probability }})
+    Indice performanță (PI 72h): {{ d.pi_72h }} | Pierdere: {{ d.loss_mwh_per_day }} MWh/zi ({{ d.loss_ron_per_day }} RON/zi)
+    Încredere: {{ d.confidence }}{% if d.low_confidence %} (INCERT - recomandare inspecție){% endif %} | Acțiune: {{ d.recommended_action | upper }}
+{% endfor %}

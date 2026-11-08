@@ -1,0 +1,19 @@
+=== ACȚIUNE ÎN AȘTEPTARE (NECESITĂ CONFIRMARE) ===
+ID Acțiune: {{ action_id }}
+Comandă / Unealtă: {{ tool }}
+Stare: {{ state }}
+Sumar: {{ summary }}
+Valabil până la: {{ expires_at }}
+{% if effective_confidence is defined %}
+Nivel de încredere: {{ effective_confidence }}
+{% endif %}
+
+{% if state == 'needs_input' %}
+ATENȚIE: Această acțiune necesită corectarea sau completarea parametrilor înainte de confirmare!
+{% else %}
+Pentru executare tastați:
+  confirm {{ action_id }}
+Pentru anulare tastați:
+  reject {{ action_id }}
+{% endif %}
+

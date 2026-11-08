@@ -1,0 +1,9 @@
+=== HARTĂ COSTURI DE OPORTUNITATE (FERESTRE OPTIME) ===
+Site: {{ site_id }}
+Interval analizat: {{ days }} zile
+{% if stale %}Avertisment prognoză: DATE ÎNVECHITE (vârstă: {{ age_hours }} ore){% endif %}
+
+Cele mai avantajoase ferestre de intervenție:
+{% for w in windows %}
+  - Echipament: {{ w.asset_id }} | Dată: {{ w.date }} (ora {{ w.hour }}:00) | Pierdere minimă: {{ w.cost_mwh }} MWh ({{ w.cost_ron }} RON)
+{% endfor %}

@@ -1,0 +1,15 @@
+=== EXPLICARE DECIZIE INTERVENȚIE: {{ task_id }} ===
+Echipament: {{ asset_id }} | Data: {{ date }} | Echipa: {{ crew }}
+
+Defalcare costuri:
+  - Pierdere producție (oportunitate): {{ cost_breakdown.opportunity_loss_mwh }} MWh ({{ cost_breakdown.opportunity_loss_ron }} RON)
+  - Cost direct intervenție: {{ cost_breakdown.direct_repair_cost_ron }} RON
+  - Cost total: {{ cost_breakdown.total_mwh }} MWh ({{ cost_breakdown.total_ron }} RON)
+
+Alternative analizate:
+| Dată | Fereastră | Echipă | Cost MWh | Cost RON | Diferență MWh | Diferență RON |
+|---|---|---|---|---|---|---|
+{% for alt in alternatives %}
+| {{ alt.date }} | {{ alt.window_start }}-{{ alt.window_end }} | {{ alt.crew }} | {{ alt.cost_mwh }} | {{ alt.cost_ron }} | {{ alt.delta_mwh }} | {{ alt.delta_ron }} |
+{% endfor %}
+

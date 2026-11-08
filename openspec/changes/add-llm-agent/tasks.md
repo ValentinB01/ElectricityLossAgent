@@ -23,7 +23,7 @@
 
 - [x] 4.1 Implement `actions.py`: pending action creation for `write` tools, args hash, TTL, confirm/reject/patch, execute-once, `needs_input` for field reports (effective confidence = min(LLM, rule checks) < 0.7), post-hooks (field report → what-if draft; household outcome → `labels`); verify `tests/test_agent_actions.py` covers double confirm, expiry, reject, args mismatch, needs_input→pending
 - [x] 4.2 Implement schedule lifecycle (draft on every `optimize_maintenance`, `promote_schedule` swaps active→history atomically) and confine writes to `results/work_orders/` and `results/alerts.log`; verify tests that a draft never alters the active schedule and that promote is a single transaction
-- [ ] 4.3 Implement `cli.py` command router (grammar in design D9) and Romanian Jinja2 templates; verify golden-output tests in `tests/test_agent_cli.py` for every command on the fixture pack, including bad-argument usage messages and the `confirm`/`reject` flow
+- [x] 4.3 Implement `cli.py` command router (grammar in design D9) and Romanian Jinja2 templates; verify golden-output tests in `tests/test_agent_cli.py` for every command on the fixture pack, including bad-argument usage messages and the `confirm`/`reject` flow
 
 ## 5. LLM orchestrator and grounding (E7)
 

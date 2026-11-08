@@ -277,8 +277,9 @@ class ToolRegistry:
 
         # 4. Action gate: Intercept write tools unless confirmation has bypassed the gate
         if defn.effect == EffectClass.WRITE and not bypass_gate:
-            from src.agent.actions import action_gate
-            pending_action = action_gate.create_pending_action(tool_name, input_dict, session_id=session_id)
+            from src.agent.actions import ActionGate
+            gate = ActionGate(store=active_store)
+            pending_action = gate.create_pending_action(tool_name, input_dict, session_id=session_id)
             duration_ms = round((time.perf_counter() - start_time) * 1000.0, 2)
             active_store.log_tool_call(
                 session_id=session_id,
@@ -304,7 +305,12 @@ class ToolRegistry:
         # 5. Call backend
         try:
             if defn.handler:
-                raw_output = defn.handler(input_dict, backend=backend_label)
+                import inspect
+                sig = inspect.signature(defn.handler)
+                if "store" in sig.parameters:
+                    raw_output = defn.handler(input_dict, backend=backend_label, store=active_store)
+                else:
+                    raw_output = defn.handler(input_dict, backend=backend_label)
             else:
                 raw_output = self._fixture_backend.call(tool_name, input_dict)
         except Exception as ex:

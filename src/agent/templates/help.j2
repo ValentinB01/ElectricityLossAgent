@@ -1,0 +1,33 @@
+=== ASISTENT PPC REDUCERE PIERDERI - COMENZI DETERMINISTE ===
+Mod determinist activ. Comenzi disponibile:
+
+Planificare & Mentenanță:
+  plan <site>                            - Generează și afișează calendarul de mentenanță optimizat
+  explain <item_id>                      - Explică decizia pentru o intervenție (ex: T17-pitch-001) sau gospodărie (ex: HH-FAULTY-01)
+  crew-off <crew> <date>                 - Simulează indisponibilitatea unei echipe (ex: crew-off crew-2 2026-11-12)
+  tasks [site]                           - Listează sarcinile de mentenanță înregistrate
+  costmap <site> [zile]                  - Calculează ferestrele cu cost minim de oportunitate (default 7 zile)
+
+Producători & Meteo:
+  weather <site> [zile]                  - Afișează prognoza meteo pentru site-ul specificat
+  underperf <site|asset...>              - Detectează echipamentele cu pierderi de producție
+  production <site>                      - Prognoza producției așteptate
+
+Consumatori & Inspecții:
+  losses [week|month]                    - Raport defalcat al pierderilor (default: week)
+  households [top_N]                     - Clasament gospodării după probabilitatea de anomalie/fraudă
+  inspections [crew]                     - Listă de inspecții alocată echipei pe teren
+  consumption <household_id>             - Prognoza consumului așteptat
+
+Acțiuni cu impact (necesită confirmare):
+  report <task> <status> [zile] "<text>" - Înregistrează raport tehnic de pe teren
+  workorders <schedule_id>               - Generează fișiere ICS și JSON pentru ordin de lucru
+  alert <level> <asset> "<mesaj>"        - Emite o alertă operațională (info, warning, critical)
+  promote <draft_id>                     - Promovează un plan draft ca plan activ
+
+Gestiune Acțiuni & Sesiune:
+  pending                                - Listează acțiunile în așteptare
+  confirm <action_id>                    - Confirmă și execută o acțiune
+  reject <action_id>                     - Respinge o acțiune
+  help [comandă]                         - Afișează acest manual de utilizare
+

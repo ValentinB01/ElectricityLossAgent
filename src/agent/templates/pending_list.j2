@@ -1,0 +1,15 @@
+=== ACȚIUNI ÎN AȘTEPTARE ===
+{% if actions | length == 0 %}
+Nu există acțiuni în așteptare.
+{% else %}
+Număr acțiuni: {{ actions | length }}
+{% for act in actions %}
+  - [{{ act.state | upper }}] ID: {{ act.id }} ({{ act.tool }})
+    Sumar: {{ act.summary }}
+    Expiră: {{ act.expires_at }}
+{% endfor %}
+
+Pentru confirmare: confirm <ID>
+Pentru respingere: reject <ID>
+{% endif %}
+

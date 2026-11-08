@@ -1,0 +1,8 @@
+=== CLASAMENT CONSUMATORI CU RISC DE PIERDERI / FRAUDĂ ===
+Număr gospodării afișate: {{ households | length }}
+
+Gospodării cu scor ridicat:
+{% for hh in households %}
+  - {{ hh.household_id }} ({{ hh.area }}): Probabilitate {{ hh.theft_probability }} | Nivel risc: {{ hh.risk_tier }} | Semnal: {{ hh.signal_type }}
+{% endfor %}
+

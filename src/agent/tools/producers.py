@@ -1,7 +1,7 @@
 """Producer tool wrappers and llm_view reducers."""
 
 from collections import defaultdict
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from src.agent.backends.fixture import DEFAULT_FIXTURE_BACKEND
 from src.agent.registry import tool
 from src.agent.schemas.common import EffectClass
@@ -222,12 +222,13 @@ def optimize_maintenance_llm_view(out: OptimizeMaintenanceOutput) -> Dict[str, A
     output_schema=OptimizeMaintenanceOutput,
     llm_view=optimize_maintenance_llm_view,
 )
-def optimize_maintenance(args: Dict[str, Any], backend: str = "fixture") -> Any:
+def optimize_maintenance(args: Dict[str, Any], backend: str = "fixture", store: Optional[Any] = None) -> Any:
+    target_store = store or DEFAULT_STORE
     res = _fixture_backend.call("optimize_maintenance", args)
     if isinstance(res, dict) and "schedule_id" in res:
         # Seed baseline active schedule if no active schedule exists in store
-        if not DEFAULT_STORE.get_active_schedule():
-            DEFAULT_STORE.store_schedule(
+        if not target_store.get_active_schedule():
+            target_store.store_schedule(
                 schedule_id="sched-active-001",
                 status="active",
                 payload=res,
@@ -236,9 +237,9 @@ def optimize_maintenance(args: Dict[str, Any], backend: str = "fixture") -> Any:
                 parent_id=None,
             )
         # Store draft schedule linked to parent active schedule
-        parent = DEFAULT_STORE.get_active_schedule()
+        parent = target_store.get_active_schedule()
         parent_id = parent["id"] if parent else "sched-active-001"
-        DEFAULT_STORE.store_schedule(
+        target_store.store_schedule(
             schedule_id=res["schedule_id"],
             status="draft",
             payload=res,
