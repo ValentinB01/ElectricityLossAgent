@@ -18,6 +18,8 @@ uvicorn
 httpx                 # fastapi.testclient in the agent API tests
 streamlit
 litellm               # LLM provider client; without an API key the agent runs in deterministic mode
+python-dotenv
+mcp
 
 # Consumers module (SGCC theft detection). Exact versions of the verified run:
 # src/consumers/requirements-lock.txt

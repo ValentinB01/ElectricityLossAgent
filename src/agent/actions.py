@@ -461,8 +461,13 @@ def process_field_report(args: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def generate_work_orders(schedule_id: str) -> Dict[str, Any]:
+def generate_work_orders(schedule_id: Optional[str] = None, store: Optional[AuditStore] = None) -> Dict[str, Any]:
     """Write confirmed maintenance work orders (ICS calendar & JSON files) into results/work_orders/ (contract §2.13)."""
+    active_store = store or DEFAULT_STORE
+    if not schedule_id or schedule_id in ("active", "current", "default"):
+        active = active_store.get_active_schedule()
+        schedule_id = active["id"] if active else "sched-active-001"
+
     safe_schedule_id = "".join(c for c in schedule_id if c.isalnum() or c in ("-", "_"))
     if not safe_schedule_id:
         safe_schedule_id = "sched-default"

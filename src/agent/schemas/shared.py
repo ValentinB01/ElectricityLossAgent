@@ -153,7 +153,10 @@ class UpdateFromFieldReportOutput(BaseModel):
 class CreateWorkOrdersInput(BaseModel):
     model_config = ConfigDict(extra="allow")
 
-    schedule_id: str = Field(description="Active or confirmed schedule identifier")
+    schedule_id: Optional[str] = Field(
+        default="sched-active-001",
+        description="Active or confirmed schedule identifier (e.g. 'sched-active-001'). Defaults to active schedule.",
+    )
 
 
 class CreateWorkOrdersOutput(BaseModel):

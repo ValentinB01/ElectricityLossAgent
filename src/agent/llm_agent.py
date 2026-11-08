@@ -11,6 +11,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import litellm
 from pydantic import BaseModel, ConfigDict, Field
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 import src.agent.tools  # Ensure all 15 tools are registered
 from src.agent.actions import ActionGate, action_gate as default_gate
 from src.agent.cli import AgentCLI, DETERMINISTIC_BANNER
@@ -145,10 +151,11 @@ class LLMAgent:
         return (
             "[NOTĂ STARE SESIUNE]\n"
             f"- Data de referință demo (as_of): {self.config.as_of}\n"
-            f"- Plan activ de mentenanță: {active_sched_id}\n"
+            f"- Plan activ de mentenanță: {active_sched_id} (folosește acest ID implicit când utilizatorul solicită ordin de lucru fără a menționa un ID)\n"
             f"- Ultimul plan ciornă (draft): {latest_draft_id}\n"
             f"- Acțiuni în așteptare de confirmare: {actions_desc}\n"
-            f"- Stare prognoză meteo: {stale_desc}"
+            f"- Stare prognoză meteo: {stale_desc}\n"
+            "- Notă UX: Nu cere utilizatorului ID-uri tehnice brute. Folosește direct planul activ curent sau prezintă-i opțiunile disponibile cu explicații clare."
         )
 
     def _assemble_context(self, session_id: str, user_message: str) -> List[Dict[str, Any]]:
@@ -165,8 +172,9 @@ class LLMAgent:
         for msg in recent_msgs:
             messages.append({"role": msg["role"], "content": msg["content"]})
 
-        # 3. User message
-        messages.append({"role": "user", "content": user_message})
+        # 3. User message: append only if not already recorded in session history
+        if not messages or messages[-1].get("role") != "user" or messages[-1].get("content") != user_message:
+            messages.append({"role": "user", "content": user_message})
         return messages
 
     def _build_tool_schemas(self) -> List[Dict[str, Any]]:
@@ -487,11 +495,30 @@ class LLMAgent:
 
             else:
                 # LLM produced final text answer
-                draft_text = content or ""
+                if content and content.strip():
+                    draft_text = content
+                elif turn_tool_results:
+                    # Model executed tools in previous turn but returned empty text; prompt once to summarize
+                    synth_messages = list(messages)
+                    synth_messages.append({
+                        "role": "user",
+                        "content": "Te rog să formulezi răspunsul final complet în limba română pe baza rezultatelor uneltelor de mai sus.",
+                    })
+                    try:
+                        synth_resp = self._call_completion(messages=synth_messages, tools=None)
+                        synth_choice = synth_resp.choices[0]
+                        synth_content = getattr(synth_choice.message, "content", None) or ""
+                        if isinstance(synth_choice.message, dict):
+                            synth_content = synth_choice.message.get("content", "") or ""
+                        draft_text = synth_content if synth_content.strip() else None
+                    except Exception:
+                        draft_text = None
+                else:
+                    draft_text = content or ""
                 break
 
-        # Check if loop ended due to limits
-        if draft_text is None:
+        # Check if loop ended due to limits or empty text
+        if not draft_text or not draft_text.strip():
             notice = limit_reached_notice or "Notă: Limita de iterații a fost atinsă; operațiunea a fost întreruptă."
             draft_text = f"{notice}\n\nAu fost apelate uneltele disponibile până la acest punct."
 

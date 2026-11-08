@@ -11,6 +11,7 @@ from src.agent.registry import registry as default_registry
 from src.agent.schemas.common import StructuredError
 from src.agent.store import AuditStore, DEFAULT_STORE
 from src.agent.templates import render_template
+import src.agent.tools  # Ensure all 15 tools are registered
 
 DETERMINISTIC_BANNER = "[MOD DETERMINIST ACTIV - Fără cheie LLM configurată]"
 
@@ -506,18 +507,15 @@ class AgentCLI:
 
     def _handle_workorders(self, args: List[str]) -> str:
         """Workorders command: create_work_orders (write action)."""
-        if not args:
-            return render_template(
-                "error",
-                command="workorders",
-                message="Lipsește identificatorul planului <schedule_id>.",
-                usage="workorders <schedule_id> (ex: workorders sched-active-001)",
-            )
+        if args:
+            schedule_id = args[0]
+        else:
+            active = self.store.get_active_schedule()
+            schedule_id = active["id"] if active else "sched-active-001"
 
-        schedule_id = args[0]
         res = self.registry.execute("create_work_orders", {"schedule_id": schedule_id}, session_id=self.session_id, store=self.store)
         if res.is_error:
-            return self._format_error("workorders", res.error, "workorders <schedule_id>")
+            return self._format_error("workorders", res.error, "workorders [schedule_id]")
 
         action = res.full_result
         return render_template("action_pending", **action)

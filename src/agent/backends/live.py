@@ -500,10 +500,14 @@ class LiveBackend:
 
     def handle_create_work_orders(self, args: Dict[str, Any], store: Optional[Any] = None) -> Any:
         from src.agent.store import DEFAULT_STORE
-        sid = str(args.get("schedule_id", ""))
+        active_store = store or DEFAULT_STORE
+        sid = str(args.get("schedule_id") or "")
+        if not sid or sid in ("active", "current", "default", "sched-active-001"):  # No id means the active plan (the schema's default is sched-active-001)
+            active = active_store.get_active_schedule()
+            sid = active["id"] if active else sid
         plan = self._plans.get(sid)
         if plan is None:
-            rec = (store or DEFAULT_STORE).get_schedule(sid)
+            rec = active_store.get_schedule(sid)
             plan = (rec or {}).get("payload")
         if not plan or not plan.get("live_sites"):
             raise _Fail(ErrorCode.UNKNOWN_ITEM, f"Schedule '{sid}' is not a live plan", item_id=sid, valid_ids=list(self._plans))
