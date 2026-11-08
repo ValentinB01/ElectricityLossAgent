@@ -1,20 +1,17 @@
-"""The optimizer on small hand-built cases (CLAUDE.md section 12). Run: python -m pytest tests"""
+"""The optimizer on small hand-built cases (CLAUDE.md section 12). Run: make test"""
 import datetime as dt
-import sys
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from optimizer import Constraints, Task, generate_revisions, optimize, tasks_from_findings  # noqa: E402
+from src.decision.optimizer import Constraints, Task, generate_revisions, optimize, tasks_from_findings
 
 TODAY = dt.date(2026, 11, 8)
 
 
 def cmap(turbines=("A",), days=10, hourly=None, workable=None, start=TODAY):
-    """A cost map like m4_cost.cost_map. hourly(day) -> MWh per stopped hour; default 1.0 everywhere, all safe, no forecast spread."""
+    """A cost map like downtime_cost.cost_map. hourly(day) -> MWh per stopped hour; default 1.0 everywhere, all safe, no forecast spread."""
     rows = []
     for t in turbines:
         for d in range(days):

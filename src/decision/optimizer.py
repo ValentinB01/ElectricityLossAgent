@@ -1,8 +1,8 @@
 """The decision: which day, hours and crew for each job, so the total energy lost is lowest (CLAUDE.md 9.6).
 
-    python optimizer.py --site fantanele   # A real calendar: today's forecast, the service calendar, replayed M2 findings
-    python optimizer.py --site kelmarsh
-    python optimizer.py --site fantanele calugareni   # Wind and solar in one calendar (two crews per site)
+    python -m src.decision.optimizer --site fantanele   # A real calendar: today's forecast, the service calendar, replayed M2 findings
+    python -m src.decision.optimizer --site kelmarsh
+    python -m src.decision.optimizer --site fantanele calugareni   # Wind and solar in one calendar (two crews per site)
     python -m pytest tests                 # Hand-built cases, including the 7.6 vs. 19.4 MWh example
 
 For one job, the cost of doing it on day d (counted from today) is
@@ -21,24 +21,23 @@ import datetime as dt
 import hashlib
 import json
 import math
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
 
-import m4_cost as m4
+from src.common import COLORS, CONF_MIN, chart_style, save_figure, write_result
+from src.producers import downtime_cost
 
-RESULTS = m4.RESULTS
 # Capacity and rules. Assumptions: the real values come from PPC field operations.
 CREWS_PER_DAY = 2
-HOURS_PER_CREW = 8          # Hours of work in a crew's day, inside the shift (m4_cost.SHIFT_LOCAL, 08-18 local).
+HOURS_PER_CREW = 8          # Hours of work in a crew's day, inside the shift (downtime_cost.SHIFT_LOCAL, 08-18 local).
 INSPECTIONS_PER_DAY = 4     # Drone or remote checks, by a separate team.
-HORIZON_DAYS = m4.HORIZON_DAYS
+HORIZON_DAYS = downtime_cost.HORIZON_DAYS
 TRIP_BONUS_MWH = 0.5        # Credit when a crew is already at the site that day (shared travel). From travel cost / energy price.
 FORECAST_SPREAD_MAX_MWH = 3.0  # If p90 - p50 downtime on the best slot exceeds this, inspect first instead of committing a crew.
 MAX_DEFERRAL_DAYS = 14      # A fault found this long ago takes the earliest slot: no endless wait for "the next calm day".
 N_ALTERNATIVES = 3
-CONF_MIN = 0.55             # Same as m2_underperf.CONF_MIN: below it, a finding gets a check, not a repair crew.
 MIN_LOSS_FOR_REPAIR = 0.05  # MWh/day. A fault with no measurable loss gets a check: a crew would recover nothing.
 # Job lengths in hours. Assumptions: real values come from the manufacturer's service manual.
 REPAIR_HOURS = {"pitch_fault": 8, "yaw_misalignment": 6}
@@ -77,7 +76,7 @@ class Constraints:
     hours_per_crew: int = HOURS_PER_CREW
     inspections_per_day: int = INSPECTIONS_PER_DAY
     horizon_days: int = HORIZON_DAYS
-    shift: tuple = m4.SHIFT_LOCAL
+    shift: tuple = downtime_cost.SHIFT_LOCAL
     unavailable: list = field(default_factory=list)  # [{"crew": "crew-2", "date": "2026-11-12"}]
 
     def __post_init__(self):
@@ -119,7 +118,7 @@ def tasks_from_findings(findings: list[dict], site: str, today: dt.date, days_to
         if f["cause"] in PV_JOBS and f["confidence"] >= CONF_MIN and f["loss_mwh_per_day"] >= MIN_LOSS_FOR_REPAIR:
             job, hours, allowed = PV_JOBS[f["cause"]]
             if job == "cleaning":
-                wait = m4.HORIZON_DAYS if days_to_rain is None else days_to_rain
+                wait = downtime_cost.HORIZON_DAYS if days_to_rain is None else days_to_rain
                 base["trace"]["days_to_rain"] = wait
                 if f["loss_mwh_per_day"] * wait <= CLEANING_COST_MWH:
                     if skipped is not None:
@@ -151,7 +150,7 @@ class CostGrid:
             arr = lambda col, fill, dtype=float: self._fill(cost_map[col].to_numpy(dtype)[keep], d[keep], h[keep], fill)
             self.cost[t], self.p90[t], self.v[t] = arr("cost_mwh", np.nan), arr("cost_mwh_p90", np.nan), arr("v_hub", np.nan)
             self.ok[t] = arr("workable", False, bool).astype(bool)
-            self.gust_ok[t] = self._fill(cost_map.gust_ms.to_numpy(float)[keep] < m4.G_SAFE_MS, d[keep], h[keep], False).astype(bool)
+            self.gust_ok[t] = self._fill(cost_map.gust_ms.to_numpy(float)[keep] < downtime_cost.G_SAFE_MS, d[keep], h[keep], False).astype(bool)
 
     def _fill(self, values, d, h, fill):
         a = np.full((self.days, 24), fill, dtype=float)
@@ -398,15 +397,15 @@ DEMO_FAULTS = [  # Injected so the demo has known problems to find. Not PPC data
 
 def replayed_findings(site: str, today: dt.date) -> list[dict]:
     """M2 on Kelmarsh data up to REPLAY_AS_OF, with DEMO_FAULTS injected. Kelmarsh turbine n stands in for the site's turbine n."""
-    import inject_faults as faults
-    import m1_expected as m1
-    import m2_underperf as m2
-    d = m1.load()
+    from src.producers import expected_power
+    from src.simulate import inject_faults as faults
+    from src.producers import underperformance
+    d = expected_power.load()
     d = d[(d.ts >= REPLAY_AS_OF - pd.Timedelta(days=60)) & (d.ts < REPLAY_AS_OF)].sort_values(["turbine", "ts"]).reset_index(drop=True)
     f = pd.DataFrame([{"fault_id": i, **x, "start": pd.Timestamp(x["start"]), "end": REPLAY_AS_OF} for i, x in enumerate(DEMO_FAULTS)])
     faulted, _ = faults.apply(d, f)
-    found = m2.detect_as_of(m1.predict_expected(faulted), REPLAY_AS_OF)
-    names = dict(zip(m4.fleet("kelmarsh").turbine, m4.fleet(site).turbine))
+    found = underperformance.detect_as_of(expected_power.predict_expected(faulted), REPLAY_AS_OF)
+    names = dict(zip(downtime_cost.fleet("kelmarsh").turbine, downtime_cost.fleet(site).turbine))
     for x in found:
         x["replayed_from"] = f"{x['turbine']} on {REPLAY_AS_OF:%Y-%m-%d}, with injected faults"
         x["turbine"] = names[x["turbine"]]
@@ -415,9 +414,9 @@ def replayed_findings(site: str, today: dt.date) -> list[dict]:
 
 
 def plan(sites: list[str], unavailable: list | None = None) -> dict:
-    """One calendar for one or more sites: wind costs from m4_cost, solar costs from pv, each site's replayed findings and revisions."""
-    import pv
-    tzs = {m4.SITES[x]["tz"] for x in sites}
+    """One calendar for one or more sites: wind costs from downtime_cost, solar costs from solar, each site's replayed findings and revisions."""
+    from src.producers import solar
+    tzs = {downtime_cost.SITES[x]["tz"] for x in sites}
     if len(tzs) > 1:
         raise SystemExit(f"Sites in one calendar must share a time zone, got {sorted(tzs)}")
     tz, now = tzs.pop(), pd.Timestamp.now(tz="UTC").floor("h").tz_localize(None)
@@ -425,18 +424,18 @@ def plan(sites: list[str], unavailable: list | None = None) -> dict:
     c = Constraints(today, crews_per_day=CREWS_PER_DAY * len(sites), unavailable=unavailable or [])  # Each site keeps its own crews.
     maps, tasks, findings, skipped, metas = [], [], [], [], {}
     for site in sites:
-        solar = m4.SITES[site].get("type", "wind") == "pv"
-        w, metas[site] = m4.get_forecast(site, pv.PV_FORECAST_VARS if solar else m4.FORECAST_VARS)
-        cm = pv.cost_map(site, w) if solar else m4.cost_map(site, w)
+        is_solar = downtime_cost.SITES[site].get("type", "wind") == "pv"
+        w, metas[site] = downtime_cost.get_forecast(site, solar.PV_FORECAST_VARS if is_solar else downtime_cost.FORECAST_VARS)
+        cm = solar.cost_map(site, w) if is_solar else downtime_cost.cost_map(site, w)
         maps.append(cm[cm.hour_utc >= now])
-        found = pv.replayed_findings(site, today) if solar else replayed_findings(site, today)
+        found = solar.replayed_findings(site, today) if is_solar else replayed_findings(site, today)
         findings += found
-        if solar:
-            rain = pv.days_to_rain(w, tz, today)
+        if is_solar:
+            rain = solar.days_to_rain(w, tz, today)
             metas[site]["days_to_rain"] = rain
             tasks += tasks_from_findings(found, site, today, rain, skipped)
         else:
-            tasks += generate_revisions(list(m4.fleet(site).turbine), site, today, today + dt.timedelta(days=c.horizon_days - 1)) + tasks_from_findings(found, site, today)
+            tasks += generate_revisions(list(downtime_cost.fleet(site).turbine), site, today, today + dt.timedelta(days=c.horizon_days - 1)) + tasks_from_findings(found, site, today)
     cm = pd.concat(maps, ignore_index=True)
     meta = {"fetched_utc": min(m["fetched_utc"] for m in metas.values()), "stale": any(m.get("stale") for m in metas.values()), "sites": metas}
     s = optimize(tasks, cm, c, tz, meta)
@@ -444,16 +443,15 @@ def plan(sites: list[str], unavailable: list | None = None) -> dict:
     s["inputs"] = {"m2_findings": [{k: v for k, v in x.items() if k != "reasons"} for x in findings],
                    "note": "Findings are replayed, not live PPC data: wind from Kelmarsh, solar from Kaggle plant 1, both with injected faults."}
     name = "_".join(sites)
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / f"schedule_{name}.json").write_text(json.dumps(s, indent=1, default=str))
+    write_result(f"schedule_{name}", s)
     _plot(s, cm, name)
     return s
 
 
 def _plot(s: dict, cm: pd.DataFrame, name: str) -> None:
     import matplotlib.patches as mpatches
-    plt = m4.m1.chart_style()
-    C = m4.m1.COLORS
+    plt = chart_style()
+    C = COLORS
     tz, days = s["timezone"], s["horizon_days"]
     turbines = list(dict.fromkeys(cm.turbine))
     grid = CostGrid(cm, dt.date.fromisoformat(s["as_of"]), days, tz)
@@ -496,14 +494,12 @@ def _plot(s: dict, cm: pd.DataFrame, name: str) -> None:
     fig.text(0.01, 0.005, f"Forecast fetched {s['forecast'].get('fetched_utc')}{' (STALE)' if s['forecast'].get('stale') else ''}; Open-Meteo.com. Findings replayed with injected faults (wind: Kelmarsh; solar: Kaggle). "
              f"Crews, limits and job lengths are assumptions.", fontsize=8, color=C["muted"])
     fig.tight_layout(rect=(0, 0.03, 1, 1))
-    (RESULTS / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(RESULTS / "figures" / f"schedule_{name}.png", dpi=150, facecolor=C["surface"])
-    plt.close(fig)
+    save_figure(fig, f"schedule_{name}")
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--site", nargs="+", choices=sorted(m4.SITES), required=True, help="One or more sites in one calendar, e.g. --site fantanele calugareni")
+    ap.add_argument("--site", nargs="+", choices=sorted(downtime_cost.SITES), required=True, help="One or more sites in one calendar, e.g. --site fantanele calugareni")
     ap.add_argument("--crew-off", nargs=2, action="append", metavar=("CREW", "DATE"), help="e.g. --crew-off crew-2 2026-11-12")
     a = ap.parse_args()
     s = plan(a.site, [{"crew": c, "date": d} for c, d in a.crew_off or []])

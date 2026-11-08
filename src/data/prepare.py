@@ -1,8 +1,8 @@
 """Build the small data files the project uses, from the public Kelmarsh archive and Open-Meteo.
 
-    python prepare_data.py              # 2019: exploration and training
-    python prepare_data.py --year 2020  # The test year. Only once the models are final.
-    python prepare_data.py --pv         # Kaggle solar data (needs a Kaggle token in ~/.kaggle/access_token)
+    python -m src.data.prepare              # 2019: exploration and training
+    python -m src.data.prepare --year 2020  # The test year. Only once the models are final.
+    python -m src.data.prepare --pv         # Kaggle solar data (needs a Kaggle token in ~/.kaggle/access_token)
 
 Writes to data/kelmarsh/, then deletes the 300-500 MB zip, since it can be downloaded again:
     turbines_<year>.parquet   All 10-minute rows, only the columns below, plus a `healthy` flag
@@ -18,6 +18,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 import re
 import urllib.parse
 import urllib.request
@@ -27,7 +28,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-DATA = Path(__file__).resolve().parent / "data" / "kelmarsh"
+from src.common import KELMARSH as DATA, PV_DIR as PV_DATA
+
 ZENODO = "https://zenodo.org/records/16807551/files/"
 STATIC = ("Kelmarsh_WT_static.csv", "af3a038f0f7fddfc1608ad0bfc8cf5ba")
 ARCHIVES = {2019: ("Kelmarsh_SCADA_2019_3085.zip", "14348a1572b722e1be10e53cd145c39a"),
@@ -48,7 +50,6 @@ COLUMNS = {
     "Lost Production to Downtime (kWh)": "lost_downtime_kwh", "Lost Production to Curtailment (Total) (kWh)": "lost_curtail_kwh",
     "Lost Production to Performance (kWh)": "lost_perf_kwh", "Potential power default PC (kW)": "vendor_potential_kw",
 }
-PV_DATA = DATA.parent / "pv"
 PV_ZIP = ("solar-power-generation-data.zip", "132b49faba3e4a67627f7e19c841a308")
 PV_URL = "https://www.kaggle.com/api/v1/datasets/download/anikannal/solar-power-generation-data"
 PV_GEN_FORMAT = {1: "%d-%m-%Y %H:%M", 2: "%Y-%m-%d %H:%M:%S"}  # Plant 1's generation file alone uses day-first dates.
@@ -116,7 +117,6 @@ def get_weather(year: int) -> pd.DataFrame:
 def prepare_pv() -> None:
     """Solar data. AC power only: Plant 1's DC column is about 10 times its AC, a unit error (Plant 2's ratio is 1.02),
     while AC integrates to the reported daily yield in both plants. Irradiation arrives in kW/m2. Times are local (India)."""
-    import os
     PV_DATA.mkdir(parents=True, exist_ok=True)
     dest = PV_DATA / PV_ZIP[0]
     if not dest.exists():

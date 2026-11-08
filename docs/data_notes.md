@@ -19,7 +19,7 @@ What inspection found (CLAUDE.md rule 1). "Verified" means read from the real fi
 - **`Turbine Power setpoint` follows output:** correlation with power is 0.88-0.89 on turbines 1 and 4, and its median rises with wind from about 900 kW to 2,060 kW.
 - **Status clauses, 2019, turbines 1 and 4:** `Stop` events flag about 1% of rows and abnormal IEC events about 3%. `Warning` events flag 5-23% of rows at normal power (median about 260-290 kW), so they are not treated as abnormal.
 
-- **What we keep:** `python prepare_data.py` keeps all 315,360 rows of 2019 but only 13 of the 299 columns, plus the status events, about 15 MB instead of 311 MB. Values are stored as 32-bit, within 0.0001 kW of the originals. To add a column, add it to `COLUMNS` in that script and run it again; it re-downloads the archive.
+- **What we keep:** `python -m src.data.prepare` keeps all 315,360 rows of 2019 but only 13 of the 299 columns, plus the status events, about 15 MB instead of 311 MB. Values are stored as 32-bit, within 0.0001 kW of the originals. To add a column, add it to `COLUMNS` in that script and run it again; it re-downloads the archive.
 - **Analysis of 2019:** see [`notebooks/explore_kelmarsh.ipynb`](../notebooks/explore_kelmarsh.ipynb). 2020 stays unseen until final evaluation.
 
 ## Open-Meteo (verified 2026-11-07)

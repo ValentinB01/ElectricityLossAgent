@@ -1,8 +1,8 @@
-"""M2: is a turbine producing less than it should, since when, why, and how many MWh a day is that?
+"""Underperformance (M2): is a turbine producing less than it should, since when, why, and how many MWh a day is that?
 
-    python m2_underperf.py --train   # Alarm threshold and cause classifier, from Jan-Oct 2019 (about 10 minutes)
-    python m2_underperf.py --eval    # Score on faults injected into Nov-Dec 2019, against the fixed-threshold baseline
-    python m2_underperf.py --eval --final  # The 2020 test year. Once only, after everything is frozen.
+    python -m src.producers.underperformance --train   # Alarm threshold and cause classifier, from Jan-Oct 2019 (about 10 minutes)
+    python -m src.producers.underperformance --eval    # Score on faults injected into Nov-Dec 2019, against the fixed-threshold baseline
+    python -m src.producers.underperformance --eval --final  # The 2020 test year. Once only, after everything is frozen.
 
 Three pieces (CLAUDE.md 9.3). The 72 h performance index says how much is lost. A two-sided
 CUSUM says the drop is persistent, not a bad hour. A classifier on the shape of the deviation
@@ -20,11 +20,11 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix, f1_score
 
-import inject_faults as faults
-import m1_expected as m1
+from src.common import CONF_MIN, COLORS, MODELS, QUANTILES, SEED, STEP_H, chart_style, plot_confusion, save_figure, write_result
+from src.producers import expected_power
+from src.simulate import inject_faults as faults
 
-SEED, MODELS, RESULTS, STEP_H = m1.SEED, m1.MODELS, m1.RESULTS, 1 / 6
-VAL_START, VAL_END = m1.TRAIN_END, m1.VAL_END
+VAL_START, VAL_END = expected_power.TRAIN_END, expected_power.VAL_END
 # Detection. Assumptions, fixed before looking at validation.
 PI_WINDOW_H = 72
 MIN_EXPECTED_FRAC = 0.10            # Only intervals where M1 expects over 10% of rated (CLAUDE.md 9.3).
@@ -40,7 +40,6 @@ TRAIN_PASSES, TRAIN_FAULTS, WINDOWS_PER_FAULT = 6, 30, 2
 EVAL_PASSES, EVAL_FAULTS = 8, 8     # Independent fault sets on Nov-Dec, so scores rest on about 48 faults (icing finds no frost), not 6.
 CLASSIFIER = {"objective": "multiclass", "num_leaves": 15, "learning_rate": 0.05, "min_data_in_leaf": 5, "seed": SEED, "deterministic": True, "force_row_wise": True, "verbose": -1}
 CLASSIFIER_TREES = 300
-CONF_MIN = 0.55                     # Below this, inspect before sending a repair crew. Assumption, used by the optimizer.
 NO_LOSS = {"anemometer_bias", "none"}  # A wrong wind reading loses no energy: it needs a check, not a repair.
 LOSS_ONLY = {"pitch_fault", "yaw_misalignment", "icing"}  # Faults that can only lower output.
 
@@ -48,21 +47,20 @@ LOSS_ONLY = {"pitch_fault", "yaw_misalignment", "icing"}  # Faults that can only
 # ---------- Expected values that never saw the row ----------
 def fold_models(d: pd.DataFrame) -> tuple[list, dict]:
     """M1 refitted five times, each without two of the ten training months, with the tree counts M1 chose."""
-    _, meta = m1._models()
-    keep = m1.clean_mask(d) & (d.ts < m1.TRAIN_END).to_numpy()
-    X, y, month = m1.build_features(d)[meta["features"]], d.frac.to_numpy(float), d.ts.dt.month.to_numpy()
+    _, meta = expected_power.load_models()
+    keep = expected_power.clean_mask(d) & (d.ts < expected_power.TRAIN_END).to_numpy()
+    X, y, month = expected_power.build_features(d)[meta["features"]], d.frac.to_numpy(float), d.ts.dt.month.to_numpy()
     folds = []
     for k in range(5):
         tr = keep & ~np.isin(month, [2 * k + 1, 2 * k + 2])
-        folds.append({n: lgb.train({**m1.LGB, "objective": "quantile", "alpha": q}, lgb.Dataset(X[tr], y[tr], categorical_feature=["asset_code"]),
-                                   num_boost_round=meta["quantiles"][n]["best_iteration"]) for n, q in m1.QUANTILES.items()})
+        folds.append({n: expected_power.fit_fixed(X[tr], y[tr], q, meta["quantiles"][n]["best_iteration"]) for n, q in QUANTILES.items()})
         print(f"  M1 without months {2 * k + 1}-{2 * k + 2}: fitted", flush=True)
     return folds, meta
 
 
 def predict_oof(d: pd.DataFrame, folds: list, meta: dict) -> pd.DataFrame:
     fold = (d.ts.dt.month.to_numpy() - 1) // 2
-    return pd.concat([m1.predict_expected(d[fold == k], folds[k], meta) for k in range(5) if (fold == k).any()]).sort_index()
+    return pd.concat([expected_power.predict_expected(d[fold == k], folds[k], meta) for k in range(5) if (fold == k).any()]).sort_index()
 
 
 # ---------- Detection ----------
@@ -275,21 +273,31 @@ def assess(series: Series, hr: dict, turbine: str, t: pd.Timestamp, side: str, b
     out = {"turbine": turbine, "ts": str(t), "side": side, "pi_72h": None if not np.isfinite(pi) else round(pi, 4), "coverage_72h": round(coverage, 3)}
     if len(rows) < 12:
         return {**out, "loss_mwh_per_day": round(loss, 3), "cause": "unknown", "cause_proba": 0.0, "confidence": 0.0, "reasons": []}
-    X = pd.DataFrame([shape_features(rows, hr, turbine, t)], columns=meta["features"]).to_numpy(float)
-    proba = booster.predict(X)[0]
+    ruled_out = []
     if "icing" in meta["classes"] and not faults.icing_conditions(rows).any():
-        proba[meta["classes"].index("icing")] = 0.0  # No cold, humid hour in the week: icing is physically impossible.
-        proba = proba / proba.sum()
+        ruled_out.append({"icing"})  # No cold, humid hour in the week: icing is physically impossible.
     if side == "high":
-        for c in LOSS_ONLY & set(meta["classes"]):
-            proba[meta["classes"].index(c)] = 0.0  # A turbine producing more than expected cannot have a fault that only loses power.
+        ruled_out.append(LOSS_ONLY)  # A turbine producing more than expected cannot have a fault that only loses power.
+    cause, proba, reasons = classify(booster, meta["classes"], meta["features"], shape_features(rows, hr, turbine, t), ruled_out)
+    return {**out, "loss_mwh_per_day": 0.0 if cause in NO_LOSS else round(loss, 3), "cause": cause, "cause_proba": round(proba, 3),
+            "confidence": round(proba * min(1.0, coverage / 0.25), 3), "reasons": reasons}
+
+
+def classify(booster, classes: list, features: list, f: dict, ruled_out: list) -> tuple[str, float, list]:
+    """The most likely cause, its probability, and the top 3 reasons (TreeSHAP contributions). Shared with the solar branch.
+
+    ruled_out: sets of causes that are physically impossible here; each set is zeroed and the rest renormalised, in order.
+    """
+    X = pd.DataFrame([f], columns=features).to_numpy(float)
+    proba = booster.predict(X)[0]
+    for causes in ruled_out:
+        for c in causes & set(classes):
+            proba[classes.index(c)] = 0.0
         proba = proba / proba.sum()
     best = int(np.argmax(proba))
-    contrib = booster.predict(X, pred_contrib=True).reshape(len(meta["classes"]), len(meta["features"]) + 1)[best, :-1]
-    reasons = [{"feature": meta["features"][j], "value": None if np.isnan(X[0, j]) else round(float(X[0, j]), 3), "contribution": round(float(contrib[j]), 3)} for j in np.argsort(-np.abs(contrib))[:3]]
-    cause = meta["classes"][best]
-    return {**out, "loss_mwh_per_day": 0.0 if cause in NO_LOSS else round(loss, 3), "cause": cause, "cause_proba": round(float(proba[best]), 3),
-            "confidence": round(float(proba[best]) * min(1.0, coverage / 0.25), 3), "reasons": reasons}
+    contrib = booster.predict(X, pred_contrib=True).reshape(len(classes), len(features) + 1)[best, :-1]
+    reasons = [{"feature": features[j], "value": None if np.isnan(X[0, j]) else round(float(X[0, j]), 3), "contribution": round(float(contrib[j]), 3)} for j in np.argsort(-np.abs(contrib))[:3]]
+    return classes[best], float(proba[best]), reasons
 
 
 def detect_as_of(pred: pd.DataFrame, as_of: pd.Timestamp, active_days: int = 14) -> list[dict]:
@@ -297,7 +305,7 @@ def detect_as_of(pred: pd.DataFrame, as_of: pd.Timestamp, active_days: int = 14)
 
     pred: rows with M1's expected values, from some weeks before as_of (the alarm detector starts at the first row).
     """
-    booster, meta = _load()
+    booster, meta = load_models()
     hist = pred[pred.ts < as_of]
     hr, series = hourly(hist), Series(hist)
     th = meta["thresholds"]
@@ -318,17 +326,17 @@ def _sorted(d: pd.DataFrame) -> pd.DataFrame:
 
 
 def train() -> dict:
-    d = m1.load()
+    d = expected_power.load()
     print("Refitting M1 five times for out-of-sample expected values...", flush=True)
     folds, meta1 = fold_models(d)
-    period = _sorted(d[d.ts < m1.TRAIN_END])
+    period = _sorted(d[d.ts < expected_power.TRAIN_END])
     hr = hourly(predict_oof(period, folds, meta1))
     th = calibrate(hr)
     print(f"CUSUM threshold {th['h']}: {th['curve']}", flush=True)
     X, y = [], []
     for k in range(TRAIN_PASSES):
         rng = np.random.default_rng([SEED, 1, k])
-        faulted, labels = faults.apply(period, faults.sample(period, TRAIN_FAULTS, period.ts.min(), m1.TRAIN_END, rng))
+        faulted, labels = faults.apply(period, faults.sample(period, TRAIN_FAULTS, period.ts.min(), expected_power.TRAIN_END, rng))
         pred = predict_oof(faulted, folds, meta1)
         Xk, yk = training_windows(pred, labels, hourly(pred), rng)
         X, y = X + Xk, y + yk
@@ -337,14 +345,14 @@ def train() -> dict:
     booster = lgb.train({**CLASSIFIER, "num_class": len(classes)}, lgb.Dataset(pd.DataFrame(X, columns=FEATURES).to_numpy(float), np.array([classes.index(c) for c in y]), feature_name=FEATURES),
                         num_boost_round=CLASSIFIER_TREES)
     MODELS.mkdir(exist_ok=True)
-    booster.save_model(str(MODELS / "m2_wind_cause.txt"))
+    booster.save_model(str(MODELS / "wind_cause.txt"))
     meta = {"classes": classes, "features": FEATURES, "thresholds": th, "windows": len(y), "class_counts": {c: y.count(c) for c in classes}, "lightgbm": lgb.__version__, "seed": SEED}
-    (MODELS / "m2_wind_meta.json").write_text(json.dumps(meta, indent=1))
+    (MODELS / "wind_cause_meta.json").write_text(json.dumps(meta, indent=1))
     return meta
 
 
-def _load() -> tuple:
-    return lgb.Booster(model_file=str(MODELS / "m2_wind_cause.txt")), json.loads((MODELS / "m2_wind_meta.json").read_text())
+def load_models() -> tuple:
+    return lgb.Booster(model_file=str(MODELS / "wind_cause.txt")), json.loads((MODELS / "wind_cause_meta.json").read_text())
 
 
 def _bucket(f) -> str:
@@ -394,13 +402,13 @@ def evaluate(final: bool = False) -> dict:
     """Validation (Nov-Dec 2019) or, with final, the 2020 test year: run once, after everything is frozen."""
     lo, hi, period_name = (VAL_END, pd.Timestamp("2021-01-01"), "test_2020") if final else (VAL_START, VAL_END, "val_2019_nov_dec")
     n_faults = max(EVAL_FAULTS, round(EVAL_FAULTS * (hi - lo).days / (VAL_END - VAL_START).days))  # Same density of faults as on validation.
-    booster, meta = _load()
+    booster, meta = load_models()
     th = meta["thresholds"]
-    boosters1, meta1 = m1._models()
-    d = m1.load((2019, 2020) if final else (2019,))
+    boosters1, meta1 = expected_power.load_models()
+    d = expected_power.load((2019, 2020) if final else (2019,))
     # Five weeks of lead-in so the first alarms in November have their feature window and month-before comparison.
     period = _sorted(d[(d.ts >= lo - pd.Timedelta(days=37)) & (d.ts < hi)])
-    clean = m1.predict_expected(period, boosters1, meta1)
+    clean = expected_power.predict_expected(period, boosters1, meta1)
     clean_hr = hourly(clean)
     real_alarms = scan(clean_hr, th["sigma"], th["h"], lo)
     real = [{**a, "dismissed_by_filter": dismissed(a)} for a in _assess_alarms(real_alarms, Series(clean), clean_hr, None, booster, meta, hi)]
@@ -411,7 +419,7 @@ def evaluate(final: bool = False) -> dict:
     for k in range(EVAL_PASSES):
         rng = np.random.default_rng([SEED, 2, k])
         faulted, labels = faults.apply(period, faults.sample(period, n_faults, lo, hi, rng))
-        pred = m1.predict_expected(faulted, boosters1, meta1)
+        pred = expected_power.predict_expected(faulted, boosters1, meta1)
         hr, series = hourly(pred), Series(pred)
         raw = scan(hr, th["sigma"], th["h"], lo)
         assessed = _assess_alarms(raw, series, hr, labels, booster, meta, hi)
@@ -443,20 +451,19 @@ def evaluate(final: bool = False) -> dict:
            "loss_mae_mwh_per_day": round(float(np.mean(loss_err)), 3), "mean_true_loss_mwh_per_day": round(float(np.mean(loss_true)), 3),
            "real_data_alarms_no_injection": real, "example": None if example is None else example["assessment"]}
     res["detects_more_than_baseline"] = res["model"]["detection_rate"] > res["baseline_pi_below_0.95"]["detection_rate"]
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / f"m2_wind_{period_name}.json").write_text(json.dumps(res, indent=1, default=str))
+    write_result(f"wind_underperformance_{period_name}", res)
     _plot(res, example, period_name, lo)
     return res
 
 
 def _plot(res: dict, example, period_name: str, lo: pd.Timestamp) -> None:
     import matplotlib.dates as mdates
-    plt = m1.chart_style()
-    C = m1.COLORS
+    plt = chart_style()
+    C = COLORS
     fig, axes = plt.subplots(1, 3, figsize=(17, 4.8), gridspec_kw={"width_ratios": [1.1, 0.9, 1.4]})
     ax = axes[0]
     sizes = ["loss under 2%", "loss 2-5%", "loss over 5%", "wrong wind reading (no loss)"]
-    rate = lambda key, s: (lambda v: int(v.split("/")[0]) / max(int(v.split("/")[1]), 1))(res[key]["by_size"].get(s, "0/0")) * 100
+    rate = lambda key, s: detected_pct(res[key]["by_size"].get(s, "0/0"))
     pos = np.arange(len(sizes))
     b, m = res["baseline_pi_below_0.95"], res["model"]
     ax.bar(pos - 0.2, [rate("baseline_pi_below_0.95", s) for s in sizes], 0.38, color=C["orange"], label=f"Baseline: index < 0.95 ({b['false_alarms_per_turbine_month']} false alarms/turbine-month)")
@@ -465,14 +472,8 @@ def _plot(res: dict, example, period_name: str, lo: pd.Timestamp) -> None:
     ax.set_ylim(0, 125); ax.set_yticks(range(0, 101, 20)); ax.grid(axis="x", visible=False)
     ax.set_title("Faults detected, by size: higher is better"); ax.set_ylabel("Detected (%)"); ax.legend(fontsize=8, loc="upper left")
     ax = axes[1]
-    lab, cm = res["confusion_labels"], np.array(res["confusion_rows_true_cols_predicted"], float)
-    share = cm / np.maximum(cm.sum(axis=1, keepdims=True), 1)
-    ax.imshow(share, cmap="Blues", vmin=0, vmax=1)
-    short = [s.replace("_", " ").replace("misalignment", "error").replace("anemometer bias", "wind reading").replace("none", "no fault") for s in lab]
-    ax.set_xticks(range(len(lab)), short, rotation=30, ha="right", fontsize=9); ax.set_yticks(range(len(lab)), short, fontsize=9)
-    for i in range(len(lab)):
-        for j in range(len(lab)):
-            ax.text(j, i, int(cm[i, j]), ha="center", va="center", fontsize=10, color="white" if share[i, j] > 0.55 else C["ink"])
+    lab = res["confusion_labels"]
+    plot_confusion(ax, lab, res["confusion_rows_true_cols_predicted"], [s.replace("_", " ").replace("misalignment", "error").replace("anemometer bias", "wind reading").replace("none", "no fault") for s in lab])
     ax.grid(False); ax.set_title("Cause of detected faults"); ax.set_xlabel("Predicted"); ax.set_ylabel("True")
     ax = axes[2]
     if example is not None:
@@ -493,9 +494,13 @@ def _plot(res: dict, example, period_name: str, lo: pd.Timestamp) -> None:
         ax.set_title("Example: real / expected each day, one fault set"); ax.set_ylabel("Real / M1 expected (%)"); ax.legend(fontsize=8, loc="upper left", ncol=2)
         lo, hi = ax.get_ylim(); ax.set_ylim(lo, hi + (hi - lo) * 0.25)
     fig.tight_layout()
-    (RESULTS / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(RESULTS / "figures" / f"m2_wind_{period_name}.png", dpi=150, facecolor=C["surface"])
-    plt.close(fig)
+    save_figure(fig, f"wind_underperformance_{period_name}")
+
+
+def detected_pct(hits: str) -> float:
+    """'detected/total', as written in the summaries, to a percentage."""
+    n, total = (int(x) for x in hits.split("/"))
+    return n / max(total, 1) * 100
 
 
 if __name__ == "__main__":

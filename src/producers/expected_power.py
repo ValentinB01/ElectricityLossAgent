@@ -1,9 +1,9 @@
-"""M1: how much would this turbine produce right now if nothing were wrong?
+"""Expected production (M1): how much would this turbine produce right now if nothing were wrong?
 
-    python m1_expected.py --compare      # Which inputs help, on validation (every third row)
-    python m1_expected.py --train        # Train the p10, p50 and p90 models
-    python m1_expected.py --eval         # Score on Nov-Dec 2019 against the baseline
-    python m1_expected.py --eval --final # Score on 2020. Once only, after everything is frozen.
+    python -m src.producers.expected_power --compare      # Which inputs help, on validation (every third row)
+    python -m src.producers.expected_power --train        # Train the p10, p50 and p90 models
+    python -m src.producers.expected_power --eval         # Score on Nov-Dec 2019 against the baseline
+    python -m src.producers.expected_power --eval --final # Score on 2020. Once only, after everything is frozen.
 
 Trained on healthy rows only: training on faulty periods would teach the fault as normal.
 Predicts power as a share of rated, so outputs convert to any turbine size. Inputs describe
@@ -13,16 +13,13 @@ calculations: the first would hide faults from M2, the second would leak a vendo
 import argparse
 import json
 import time
-from pathlib import Path
 
 import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
-DATA, MODELS, RESULTS = ROOT / "data" / "kelmarsh", ROOT / "models", ROOT / "results"
-SEED = 42
-QUANTILES = {"p10": 0.1, "p50": 0.5, "p90": 0.9}
+from src.common import COLORS, KELMARSH, MODELS, QUANTILES, SEED, chart_style, save_figure, write_result
+
 TRAIN_END, VAL_END = pd.Timestamp("2019-11-01"), pd.Timestamp("2020-01-01")  # Fixed before seeing any result.
 
 # Starting hyperparameters from the guide, CLAUDE.md 9.1.
@@ -41,15 +38,15 @@ def load(years=(2019,)) -> pd.DataFrame:
     """Turbine rows with the hour's weather attached, and power as a share of rated."""
     frames = []
     for y in years:
-        p = DATA / f"turbines_{y}.parquet"
+        p = KELMARSH / f"turbines_{y}.parquet"
         if not p.exists():
-            raise SystemExit(f"{p} is missing. Run: python prepare_data.py --year {y}")
+            raise SystemExit(f"{p} is missing. Run: python -m src.data.prepare --year {y}")
         d = pd.read_parquet(p)
-        w = pd.read_parquet(DATA / f"weather_{y}.parquet")
+        w = pd.read_parquet(KELMARSH / f"weather_{y}.parquet")
         w = w.assign(hour=w.ts_utc.dt.tz_localize(None))[["hour", "surface_pressure", "temperature_2m", "relative_humidity_2m"]]  # Humidity: icing, for M2.
         frames.append(d.assign(hour=d.ts.dt.floor("h")).merge(w, on="hour", how="left").drop(columns="hour"))
     d = pd.concat(frames, ignore_index=True)
-    facts = pd.read_csv(DATA / "Kelmarsh_WT_static.csv", encoding="utf-8-sig")
+    facts = pd.read_csv(KELMARSH / "Kelmarsh_WT_static.csv", encoding="utf-8-sig")
     d["rated_kw"] = d.turbine.map(dict(zip(facts["Alternative Title"], facts["Rated power (kW)"].astype(float))))
     d["frac"] = d.power_kw / d.rated_kw
     return d
@@ -82,12 +79,21 @@ def build_features(d: pd.DataFrame) -> pd.DataFrame:
                          "month_sin": np.sin(year), "month_cos": np.cos(year), "asset_code": d.turbine.map(ASSET_CODES).to_numpy(float)}, index=d.index)
 
 
+def _categorical(X: pd.DataFrame):
+    return ["asset_code"] if "asset_code" in X.columns else "auto"
+
+
 def fit(X_tr, y_tr, X_va, y_va, alpha: float, **overrides) -> lgb.Booster:
-    cat = ["asset_code"] if "asset_code" in X_tr.columns else "auto"
-    ds = lgb.Dataset(X_tr, y_tr, categorical_feature=cat)
+    """Quantile LightGBM with early stopping on validation. Shared by every expected-power model."""
+    ds = lgb.Dataset(X_tr, y_tr, categorical_feature=_categorical(X_tr))
     trees = overrides.pop("trees", MAX_TREES)
     params = {**LGB, "objective": "quantile", "alpha": alpha, "metric": "quantile", **overrides}
     return lgb.train(params, ds, num_boost_round=trees, valid_sets=[lgb.Dataset(X_va, y_va, reference=ds)], callbacks=[lgb.early_stopping(PATIENCE, verbose=False)])
+
+
+def fit_fixed(X, y, alpha: float, trees: int) -> lgb.Booster:
+    """The same model with a tree count already chosen: the refits that give M2 out-of-sample expected values."""
+    return lgb.train({**LGB, "objective": "quantile", "alpha": alpha}, lgb.Dataset(X, y, categorical_feature=_categorical(X)), num_boost_round=trees)
 
 
 def binned_curve(wind, frac) -> dict:
@@ -110,7 +116,7 @@ def compare() -> pd.DataFrame:
     keep = clean_mask(d)
     tr, va = keep & (d.ts < TRAIN_END).to_numpy(), keep & ((d.ts >= TRAIN_END) & (d.ts < VAL_END)).to_numpy()
     tr_idx = np.flatnonzero(tr)[::3]
-    X, y, rated = build_features(d), d.frac.to_numpy(float), d.rated_kw.to_numpy(float)
+    X, y = build_features(d), d.frac.to_numpy(float)
     wind = d.wind_ms.to_numpy(float)
     curve = binned_curve(wind[tr], y[tr])
     base = np.interp(wind[va], curve["centres"], curve["values"])
@@ -129,10 +135,8 @@ def compare() -> pd.DataFrame:
         p = b.predict(X.loc[va, cols].to_numpy(float))
         rows.append({"inputs": name, "val_mae_pct_rated": round(float(np.abs(p - y[va]).mean() * 100), 3), "val_bias_pct_rated": round(float((p - y[va]).mean() * 100), 3), "trees": b.best_iteration, "seconds": round(time.time() - t)})
         print(rows[-1], flush=True)
-    out = pd.DataFrame(rows)
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / "m1_feature_comparison.json").write_text(json.dumps(rows, indent=1))
-    return out
+    write_result("wind_expected_feature_comparison", rows)
+    return pd.DataFrame(rows)
 
 
 def train() -> dict:
@@ -148,23 +152,23 @@ def train() -> dict:
     for name, q in QUANTILES.items():
         t = time.time()
         b = fit(X[tr], y[tr], X[va], y[va], q)
-        b.save_model(str(MODELS / f"m1_wind_{name}.txt"), num_iteration=b.best_iteration)
+        b.save_model(str(MODELS / f"wind_expected_{name}.txt"), num_iteration=b.best_iteration)
         meta["quantiles"][name] = {"best_iteration": int(b.best_iteration), "minutes": round((time.time() - t) / 60, 1)}
         print(name, meta["quantiles"][name], flush=True)
-    (MODELS / "m1_wind_baseline.json").write_text(json.dumps(binned_curve(d.wind_ms[tr], y[tr])))
-    (MODELS / "m1_wind_meta.json").write_text(json.dumps(meta, indent=1))
+    (MODELS / "wind_expected_baseline.json").write_text(json.dumps(binned_curve(d.wind_ms[tr], y[tr])))
+    (MODELS / "wind_expected_meta.json").write_text(json.dumps(meta, indent=1))
     return meta
 
 
-def _models() -> tuple[dict, dict]:
-    meta = json.loads((MODELS / "m1_wind_meta.json").read_text())
-    return {n: lgb.Booster(model_file=str(MODELS / f"m1_wind_{n}.txt")) for n in QUANTILES}, meta
+def load_models() -> tuple[dict, dict]:
+    meta = json.loads((MODELS / "wind_expected_meta.json").read_text())
+    return {n: lgb.Booster(model_file=str(MODELS / f"wind_expected_{n}.txt")) for n in QUANTILES}, meta
 
 
 def predict_expected(df: pd.DataFrame, boosters=None, meta=None) -> pd.DataFrame:
     """Returns df with exp_p10_kw, exp_p50_kw and exp_p90_kw added (CLAUDE.md 9.1)."""
     if boosters is None:
-        boosters, meta = _models()
+        boosters, meta = load_models()
     unknown = set(df.turbine.unique()) - set(meta["asset_codes"])
     if unknown:
         raise ValueError(f"M1 does not know these turbines: {sorted(unknown)}")
@@ -176,12 +180,10 @@ def predict_expected(df: pd.DataFrame, boosters=None, meta=None) -> pd.DataFrame
     return df.assign(exp_p10_kw=q[:, 0], exp_p50_kw=q[:, 1], exp_p90_kw=q[:, 2])
 
 
-def explain(rows: pd.DataFrame, top: int = 3) -> list[list[dict]]:
-    """Top factors per row, in kW, using LightGBM's built-in TreeSHAP (the same algorithm as shap.TreeExplainer)."""
-    boosters, meta = _models()
-    X = build_features(rows)[meta["features"]].to_numpy(float)
-    c = boosters["p50"].predict(X, pred_contrib=True)[:, :-1] * rows.rated_kw.to_numpy(float)[:, None]
-    return [[{"feature": meta["features"][i], "contribution_kw": round(float(r[i]), 1)} for i in np.argsort(-np.abs(r))[:top]] for r in c]
+def _errors(g: pd.DataFrame) -> dict:
+    """Model and baseline error, and model bias, for one slice of the evaluation rows."""
+    return {"model_mae_pct": score(g.power_kw, g.exp_p50_kw, g.rated_kw)["mae_pct_rated"], "baseline_mae_pct": score(g.power_kw, g.base_kw, g.rated_kw)["mae_pct_rated"],
+            "bias_pct": round(float((g.exp_p50_kw - g.power_kw).mean() / g.rated_kw.mean() * 100), 3)}
 
 
 def evaluate(final: bool = False) -> dict:
@@ -190,15 +192,15 @@ def evaluate(final: bool = False) -> dict:
     lo, hi, name = (VAL_END, pd.Timestamp("2021-01-01"), "test_2020") if final else (TRAIN_END, VAL_END, "val_2019_nov_dec")
     d = d[keep & ((d.ts >= lo) & (d.ts < hi)).to_numpy()].reset_index(drop=True)
     d = predict_expected(d)
-    curve = json.loads((MODELS / "m1_wind_baseline.json").read_text())
+    curve = json.loads((MODELS / "wind_expected_baseline.json").read_text())
     d["base_kw"] = np.interp(d.wind_ms, curve["centres"], curve["values"]) * d.rated_kw
     y, r = d.power_kw.to_numpy(float), d.rated_kw.to_numpy(float)
     d["covered"] = (y >= d.exp_p10_kw) & (y <= d.exp_p90_kw)
     bins = pd.cut(d.wind_ms, [0, 4, 6, 8, 10, 12, 15, 40], include_lowest=True)
     by_bin = [{"wind_ms": str(k), "rows": len(g), "model_mae_pct": score(g.power_kw, g.exp_p50_kw, g.rated_kw)["mae_pct_rated"], "baseline_mae_pct": score(g.power_kw, g.base_kw, g.rated_kw)["mae_pct_rated"],
                "model_bias_pct": round(float((g.exp_p50_kw - g.power_kw).mean() / g.rated_kw.mean() * 100), 3), "coverage_10_90": round(float(g.covered.mean()), 3)} for k, g in d.groupby(bins, observed=True)]
-    by_turbine = {t: {"model_mae_pct": score(g.power_kw, g.exp_p50_kw, g.rated_kw)["mae_pct_rated"], "baseline_mae_pct": score(g.power_kw, g.base_kw, g.rated_kw)["mae_pct_rated"], "bias_pct": round(float((g.exp_p50_kw - g.power_kw).mean() / g.rated_kw.mean() * 100), 3)} for t, g in d.groupby("turbine")}
-    by_month = {str(m): {"model_mae_pct": score(g.power_kw, g.exp_p50_kw, g.rated_kw)["mae_pct_rated"], "baseline_mae_pct": score(g.power_kw, g.base_kw, g.rated_kw)["mae_pct_rated"], "bias_pct": round(float((g.exp_p50_kw - g.power_kw).mean() / g.rated_kw.mean() * 100), 3)} for m, g in d.groupby(d.ts.dt.to_period("M"))}
+    by_turbine = {t: _errors(g) for t, g in d.groupby("turbine")}
+    by_month = {str(m): _errors(g) for m, g in d.groupby(d.ts.dt.to_period("M"))}
     # The noise floor for M2: on healthy data, how far does real / expected wander over 72 hours?
     h = d.assign(hour=d.ts.dt.floor("h"), use=d.exp_p50_kw > 0.1 * d.rated_kw)
     h = h[h.use].groupby(["hour", "turbine"])[["power_kw", "exp_p50_kw"]].sum().unstack("turbine").asfreq("h")
@@ -209,37 +211,23 @@ def evaluate(final: bool = False) -> dict:
            "by_wind": by_bin, "by_turbine": by_turbine, "by_month": by_month,
            "pi_72h_on_healthy_data": {"p05": round(float(pi_all.quantile(.05)), 4), "median": round(float(pi_all.median()), 4), "p95": round(float(pi_all.quantile(.95)), 4), "std": round(float(pi_all.std()), 4)}}
     res["top_factors_by_mean_abs_kw"] = _importance(d)
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / f"m1_wind_{name}.json").write_text(json.dumps(res, indent=1))
-    plot_expected(d, res, f"m1_wind_{name}")
+    write_result(f"wind_expected_{name}", res)
+    plot_expected(d, res, f"wind_expected_{name}")
     return res
 
 
 def _importance(d: pd.DataFrame) -> dict:
-    boosters, meta = _models()
+    """Mean absolute contribution of each input in kW, from LightGBM's built-in TreeSHAP (the algorithm behind shap.TreeExplainer)."""
+    boosters, meta = load_models()
     s = d.sample(min(5000, len(d)), random_state=SEED)
     c = np.abs(boosters["p50"].predict(build_features(s)[meta["features"]].to_numpy(float), pred_contrib=True)[:, :-1]) * s.rated_kw.to_numpy(float)[:, None]
     return {f: round(float(v), 1) for f, v in sorted(zip(meta["features"], c.mean(axis=0)), key=lambda x: -x[1])}
 
 
-COLORS = {"blue": "#2a78d6", "orange": "#eb6834", "ink": "#0b0b0b", "muted": "#52514e", "grid": "#e6e5e0", "surface": "#fcfcfb"}
-
-
-def chart_style():
-    """Shared look for every results chart. Returns pyplot."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    MUTED, GRID, SURFACE = COLORS["muted"], COLORS["grid"], COLORS["surface"]
-    plt.rcParams.update({"figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "axes.edgecolor": GRID, "axes.grid": True, "grid.color": GRID, "axes.axisbelow": True, "axes.spines.top": False, "axes.spines.right": False, "axes.spines.left": False,
-                         "axes.titlelocation": "left", "axes.titlesize": 12, "axes.titleweight": "bold", "axes.labelcolor": MUTED, "xtick.color": MUTED, "ytick.color": MUTED, "xtick.major.size": 0, "ytick.major.size": 0, "legend.frameon": False})
-    return plt
-
-
 def plot_expected(d: pd.DataFrame, res: dict, file: str, model: str = "M1", xlabel: str = "Nacelle wind speed (m/s)") -> None:
     """Real vs. expected along the power curve, and error by wind speed against the baseline. Shared with M1-W."""
     plt = chart_style()
-    BLUE, ORANGE, INK, SURFACE = COLORS["blue"], COLORS["orange"], COLORS["ink"], COLORS["surface"]
+    BLUE, ORANGE, INK = COLORS["blue"], COLORS["orange"], COLORS["ink"]
     fig, axes = plt.subplots(1, 2, figsize=(12, 4.3))
     g = d.groupby((d.wind_ms * 2).round() / 2)
     g = {k: v for k, v in g if len(v) >= 20}
@@ -256,9 +244,7 @@ def plot_expected(d: pd.DataFrame, res: dict, file: str, model: str = "M1", xlab
     axes[1].set_xticks(pos, labels); axes[1].grid(axis="x", visible=False)
     axes[1].set_title("Error by wind speed: lower is better"); axes[1].set_xlabel(xlabel); axes[1].set_ylabel("Mean absolute error (% of rated)"); axes[1].legend(fontsize=9)
     fig.tight_layout()
-    (RESULTS / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(RESULTS / "figures" / f"{file}.png", dpi=150, facecolor=SURFACE)
-    plt.close(fig)
+    save_figure(fig, file)
 
 
 if __name__ == "__main__":

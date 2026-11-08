@@ -1,7 +1,7 @@
 """Backtest: a year replayed day by day under three maintenance policies (CLAUDE.md 9.7).
 
-    python backtest.py --dev      # Nov-Dec 2019: builds and checks the replay. Not a result.
-    python backtest.py --final    # 2020, the test year. Run once, after every setting is frozen.
+    python -m src.decision.backtest --dev      # Nov-Dec 2019: builds and checks the replay. Not a result.
+    python -m src.decision.backtest --final    # 2020, the test year. Run once, after every setting is frozen.
 
 Every policy gets the same faults, detections, crews, safety limits and revisions. Only the decision differs:
     immediate     each repair at the earliest safe slot after detection, whatever the stop costs
@@ -18,18 +18,17 @@ A policy acts on a finding only while its fault is still unrepaired.
 import argparse
 import copy
 import datetime as dt
-import json
 
 import numpy as np
 import pandas as pd
 
-import inject_faults as faults
-import m1_expected as m1
-import m2_underperf as m2
-import m4_cost as m4
-import optimizer as opt
+from src.common import COLORS, KELMARSH, SEED, STEP_H, chart_style, save_figure, write_result
+from src.decision import optimizer as opt
+from src.producers import downtime_cost, expected_power, underperformance
+from src.simulate import inject_faults as faults
 
-SITE, TZ, STEP_H, SEED = "kelmarsh", m4.SITES["kelmarsh"]["tz"], 1 / 6, m1.SEED
+SITE = "kelmarsh"
+TZ = downtime_cost.SITES[SITE]["tz"]
 FAULTS_PER_YEAR = 30         # CLAUDE.md 9.7 asks for 20-40.
 MIN_GAP_DAYS = 60            # Faults on one turbine start at least this far apart.
 NOISE_PER_LEAD_DAY = 0.03    # Noisy forecast: wind and gusts x (1 + e), e ~ N(0, 0.03 x (days ahead + 1)), one draw per day ahead. Assumption.
@@ -79,16 +78,16 @@ def lost_until(losses: dict, fid: int, t) -> float:
 
 def detections(d: pd.DataFrame, fl: pd.DataFrame, lo, hi) -> list[dict]:
     """M2 once over the period with every fault left in place. Each finding is known 48 h after its alarm, when it is classified."""
-    booster, meta = m2._load()
+    booster, meta = underperformance.load_models()
     th = meta["thresholds"]
     faulted, _ = faults.apply(d, fl)
-    b1, meta1 = m1._models()
-    pred = m1.predict_expected(faulted, b1, meta1)
-    hr, series = m2.hourly(pred), m2.Series(pred)
-    alarms = m2.scan(hr, th["sigma"], th["h"], lo)
+    b1, meta1 = expected_power.load_models()
+    pred = expected_power.predict_expected(faulted, b1, meta1)
+    hr, series = underperformance.hourly(pred), underperformance.Series(pred)
+    alarms = underperformance.scan(hr, th["sigma"], th["h"], lo)
     out = []
-    for r, a in zip(alarms.itertuples(), m2._assess_alarms(alarms, series, hr, None, booster, meta, hi)):
-        if m2.dismissed(a):
+    for r, a in zip(alarms.itertuples(), underperformance._assess_alarms(alarms, series, hr, None, booster, meta, hi)):
+        if underperformance.dismissed(a):
             continue
         before = fl[(fl.turbine == r.turbine) & (fl.start < r.ts)]
         out.append({**a, "alarm_ts": r.ts, "known_at": pd.Timestamp(a["ts"]), "fault_id": int(before.sort_values("start").fault_id.iloc[-1]) if len(before) else -1})
@@ -99,9 +98,9 @@ class World:
     """Real production and safety per turbine-hour, and the forecast as seen from each morning."""
 
     def __init__(self, d: pd.DataFrame, years: tuple, lo, hi):
-        w = pd.concat([pd.read_parquet(m1.DATA / f"weather_{y}.parquet") for y in years], ignore_index=True)
+        w = pd.concat([pd.read_parquet(KELMARSH / f"weather_{y}.parquet") for y in years], ignore_index=True)
         self.weather = w[(w.ts_utc >= pd.Timestamp(lo, tz="UTC") - pd.Timedelta(days=1)) & (w.ts_utc <= pd.Timestamp(hi, tz="UTC") + pd.Timedelta(days=11))].reset_index(drop=True)
-        self.actual = m4.cost_map(SITE, self.weather)  # M1-W on the real weather: the perfect forecast, and the real safety flags.
+        self.actual = downtime_cost.cost_map(SITE, self.weather)  # M1-W on the real weather: the perfect forecast, and the real safety flags.
         self.safe = set(map(tuple, self.actual.loc[self.actual.workable, ["turbine", "hour_utc"]].to_numpy()))
         g = d.assign(hour=d.ts.dt.floor("h"), mwh=d.power_kw.clip(lower=0).fillna(0) * STEP_H / 1000).groupby(["turbine", "hour"]).mwh.sum()
         self.production = g.to_dict()
@@ -119,7 +118,7 @@ class World:
                 eps = np.random.default_rng([SEED, 6, seed, day.toordinal()]).normal(0, NOISE_PER_LEAD_DAY * (np.arange(opt.HORIZON_DAYS) + 1))
                 for c in ("wind_speed_100m", "wind_speed_10m", "wind_gusts_10m"):
                     w[c] = (w[c] * (1 + eps[lead])).clip(lower=0)
-                cm = m4.cost_map(SITE, w)
+                cm = downtime_cost.cost_map(SITE, w)
                 cm = cm[cm.hour_utc < end]
             self.cache[key] = cm
         return self.cache[key]
@@ -133,7 +132,7 @@ def utc_hour(date: str, hour: int) -> pd.Timestamp:
 def revisions(lo, hi, policy: str) -> list:
     """The service calendar. Only revisions whose whole window lies in the period, so no policy can push one past the end.
     The two simple policies hold each revision on its due date or the first safe day after; the agent may use the full window."""
-    tasks = opt.generate_revisions(list(m4.fleet(SITE).turbine), SITE, lo.date(), (hi - pd.Timedelta(days=1)).date(), epoch=dt.date(2019, 1, 5))
+    tasks = opt.generate_revisions(list(downtime_cost.fleet(SITE).turbine), SITE, lo.date(), (hi - pd.Timedelta(days=1)).date(), epoch=dt.date(2019, 1, 5))
     tasks = [t for t in tasks if t.due_start >= lo.date() and t.due_end < hi.date()]
     for t in tasks:
         if policy != "agent":
@@ -243,7 +242,7 @@ def simulate(policy: str, mode: str, seed: int, found: list, fl: pd.DataFrame, l
 def run(period: str) -> dict:
     lo, hi, years = PERIODS[period]
     lo, hi = pd.Timestamp(lo), pd.Timestamp(hi)
-    d = m1.load(years)
+    d = expected_power.load(years)
     d = d[(d.ts >= lo - pd.Timedelta(days=LEAD_IN_DAYS)) & (d.ts < hi)].sort_values(["turbine", "ts"]).reset_index(drop=True)
     world = World(d, years, lo, hi)
     n = max(4, round(FAULTS_PER_YEAR * (hi - lo).days / 365))
@@ -268,17 +267,16 @@ def run(period: str) -> dict:
     res = {"period": period, "from": str(lo.date()), "to": str((hi - pd.Timedelta(days=1)).date()), "seeds": SEEDS, "faults_requested_per_seed": n, "faults_placed_per_seed": placed,
            "note": "Faults are injected into real SCADA; detections come from M2; downtime is charged on real production. Failures (M3) are out of scope, so their cost is 0.",
            "assumptions": {"noise_per_lead_day": NOISE_PER_LEAD_DAY, "crews_per_day": opt.CREWS_PER_DAY, "repair_hours": opt.REPAIR_HOURS, "revision_hours": [opt.SEMIANNUAL_HOURS, opt.ANNUAL_HOURS],
-                           "v_safe_ms": m4.V_SAFE_MS, "g_safe_ms": m4.G_SAFE_MS},
+                           "v_safe_ms": downtime_cost.V_SAFE_MS, "g_safe_ms": downtime_cost.G_SAFE_MS},
            "summary": summary.to_dict("records"), "runs": runs, "agent_jobs_perfect_seed0": detail[(0, "perfect", "agent")]}
-    m1.RESULTS.mkdir(exist_ok=True)
-    (m1.RESULTS / f"backtest_{period}.json").write_text(json.dumps(res, indent=1, default=str))
+    write_result(f"backtest_{period}", res)
     _plot(summary, period, res)
     return res
 
 
 def _plot(summary: pd.DataFrame, period: str, res: dict) -> None:
-    plt = m1.chart_style()
-    C = m1.COLORS
+    plt = chart_style()
+    C = COLORS
     names = {"immediate": "Repair as soon\nas detected", "at_revision": "Repair at the\nnext revision", "agent": "Agent"}
     fig, axes = plt.subplots(1, 2, figsize=(13, 4.8), sharey=True)
     for ax, mode in zip(axes, ("perfect", "noisy")):
@@ -295,9 +293,7 @@ def _plot(summary: pd.DataFrame, period: str, res: dict) -> None:
     axes[0].legend(fontsize=8, loc="upper right")
     fig.text(0.01, 0.01, f"Kelmarsh, 6 turbines; {np.mean(res['faults_placed_per_seed']):.0f} injected faults per set (icing needs frost), mean of {res['seeds']} sets (bars: range). Failures (M3) out of scope.", fontsize=8, color=C["muted"])
     fig.tight_layout(rect=(0, 0.04, 1, 1))
-    (m1.RESULTS / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(m1.RESULTS / "figures" / f"backtest_{period}.png", dpi=150, facecolor=C["surface"])
-    plt.close(fig)
+    save_figure(fig, f"backtest_{period}")
 
 
 if __name__ == "__main__":

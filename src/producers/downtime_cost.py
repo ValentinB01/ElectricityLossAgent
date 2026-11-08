@@ -1,9 +1,9 @@
-"""M4: what would stopping each turbine cost, hour by hour, over the next 10 days? (CLAUDE.md 9.5)
+"""Downtime cost (M4): what would stopping each turbine cost, hour by hour, over the next 10 days? (CLAUDE.md 9.5)
 
-    python m4_cost.py --train            # M1-W: expected power from weather alone, trained on Jan-Oct 2019 (about a minute)
-    python m4_cost.py --eval             # M1-W against its baseline on Nov-Dec 2019
-    python m4_cost.py --eval --final     # The 2020 test year. Once only, after everything is frozen.
-    python m4_cost.py --site kelmarsh    # Cost map from today's Open-Meteo forecast (or --site fantanele)
+    python -m src.producers.downtime_cost --train            # M1-W: expected power from weather alone, trained on Jan-Oct 2019 (about a minute)
+    python -m src.producers.downtime_cost --eval             # M1-W against its baseline on Nov-Dec 2019
+    python -m src.producers.downtime_cost --eval --final     # The 2020 test year. Once only, after everything is frozen.
+    python -m src.producers.downtime_cost --site kelmarsh    # Cost map from today's Open-Meteo forecast (or --site fantanele)
 
 A stopped hour loses that hour's production, so the cost of a stop is the expected production on the
 forecast. M1 cannot give it: it reads the nacelle anemometer, which no forecast has. M1-W maps what a
@@ -24,9 +24,9 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-import m1_expected as m1
+from src.common import COLORS, FORECASTS, KELMARSH, MODELS, QUANTILES, SEED, chart_style, save_figure, write_result
+from src.producers import expected_power
 
-MODELS, RESULTS, FORECASTS = m1.MODELS, m1.RESULTS, m1.ROOT / "data" / "forecast"
 FEATURES = ["v_hub", "rho", "gust_factor", "temp_c"]
 LEVELS = {80: "wind_speed_80m", 100: "wind_speed_100m", 120: "wind_speed_120m"}  # Archive has 100 m; the forecast has 80 and 120 m.
 SHEAR_ALPHA = 0.143   # Power-law shear from the nearest level to hub height (CLAUDE.md 9.5). Assumption: real shear varies with stability.
@@ -84,7 +84,7 @@ def hub_wind(wh: pd.DataFrame, hub_m: float) -> np.ndarray:
 def features(wh: pd.DataFrame, hub_m: float) -> pd.DataFrame:
     missing = {"wind_speed_10m", "wind_gusts_10m", "temperature_2m", "surface_pressure"} - set(wh.columns)
     if missing:
-        raise SystemExit(f"Weather is missing {sorted(missing)}. Run: python prepare_data.py (it fetches the weather again).")
+        raise SystemExit(f"Weather is missing {sorted(missing)}. Run: python -m src.data.prepare (it fetches the weather again).")
     t = wh.temperature_2m.to_numpy(float)
     return pd.DataFrame({"v_hub": hub_wind(wh, hub_m), "rho": wh.surface_pressure.to_numpy(float) * 100 / (287.05 * (t + 273.15)),
                          "gust_factor": wh.wind_gusts_10m.to_numpy(float) / np.maximum(wh.wind_speed_10m.to_numpy(float), 1.0), "temp_c": t}, index=wh.index)
@@ -92,7 +92,7 @@ def features(wh: pd.DataFrame, hub_m: float) -> pd.DataFrame:
 
 def fleet(site: str) -> pd.DataFrame:
     if site == "kelmarsh":
-        f = pd.read_csv(m1.DATA / "Kelmarsh_WT_static.csv", encoding="utf-8-sig")
+        f = pd.read_csv(KELMARSH / "Kelmarsh_WT_static.csv", encoding="utf-8-sig")
         return pd.DataFrame({"turbine": f["Alternative Title"], "rated_kw": f["Rated power (kW)"].astype(float), "hub_m": f["Hub Height (m)"].astype(float)})
     s = SITES[site]
     return pd.DataFrame({"turbine": [f"{s['prefix']}{i + 1:02d}" for i in range(s["turbines"])], "rated_kw": s["rated_kw"], "hub_m": s["hub_m"]})
@@ -101,11 +101,11 @@ def fleet(site: str) -> pd.DataFrame:
 # ---------- M1-W ----------
 def hourly_table(year: int = 2019) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Hourly mean power share per turbine on healthy hours, with that hour's weather, and the model inputs."""
-    d = m1.load((year,))
-    keep = m1.clean_mask(d)
+    d = expected_power.load((year,))
+    keep = expected_power.clean_mask(d)
     g = (pd.DataFrame({"hour": d.ts.dt.floor("h"), "turbine": d.turbine, "frac": d.frac.where(keep), "rated_kw": d.rated_kw})
          .groupby(["hour", "turbine"]).agg(frac=("frac", "mean"), n=("frac", "count"), rated_kw=("rated_kw", "first")).reset_index())
-    t = g[g.n >= MIN_INTERVALS].merge(hour_means(pd.read_parquet(m1.DATA / f"weather_{year}.parquet")), on="hour").reset_index(drop=True)
+    t = g[g.n >= MIN_INTERVALS].merge(hour_means(pd.read_parquet(KELMARSH / f"weather_{year}.parquet")), on="hour").reset_index(drop=True)
     t["hub_m"] = t.turbine.map(fleet("kelmarsh").set_index("turbine").hub_m)
     X = pd.concat([features(g, hub) for hub, g in t.groupby("hub_m")]).loc[t.index, FEATURES]
     return t, X
@@ -113,29 +113,29 @@ def hourly_table(year: int = 2019) -> tuple[pd.DataFrame, pd.DataFrame]:
 
 def train() -> dict:
     t, X = hourly_table()
-    tr, va = (t.hour < m1.TRAIN_END).to_numpy(), ((t.hour >= m1.TRAIN_END) & (t.hour < m1.VAL_END)).to_numpy()
+    tr, va = (t.hour < expected_power.TRAIN_END).to_numpy(), ((t.hour >= expected_power.TRAIN_END) & (t.hour < expected_power.VAL_END)).to_numpy()
     y = t.frac.to_numpy(float)
-    meta = {"features": FEATURES, "train_hours": int(tr.sum()), "val_hours": int(va.sum()), "quantiles": {}, "lightgbm": lgb.__version__, "seed": m1.SEED}
+    meta = {"features": FEATURES, "train_hours": int(tr.sum()), "val_hours": int(va.sum()), "quantiles": {}, "lightgbm": lgb.__version__, "seed": SEED}
     MODELS.mkdir(exist_ok=True)
-    for name, q in m1.QUANTILES.items():
-        b = m1.fit(X[tr], y[tr], X[va], y[va], q)
-        b.save_model(str(MODELS / f"m1w_wind_{name}.txt"), num_iteration=b.best_iteration)
+    for name, q in QUANTILES.items():
+        b = expected_power.fit(X[tr], y[tr], X[va], y[va], q)
+        b.save_model(str(MODELS / f"wind_weather_{name}.txt"), num_iteration=b.best_iteration)
         _boosters.cache_clear()
         meta["quantiles"][name] = int(b.best_iteration)
-    (MODELS / "m1w_wind_baseline.json").write_text(json.dumps(m1.binned_curve(X.v_hub[tr], y[tr])))
-    (MODELS / "m1w_wind_meta.json").write_text(json.dumps(meta, indent=1))
+    (MODELS / "wind_weather_baseline.json").write_text(json.dumps(expected_power.binned_curve(X.v_hub[tr], y[tr])))
+    (MODELS / "wind_weather_meta.json").write_text(json.dumps(meta, indent=1))
     return meta
 
 
 @functools.lru_cache(maxsize=1)
 def _boosters() -> dict:
-    return {n: lgb.Booster(model_file=str(MODELS / f"m1w_wind_{n}.txt")) for n in m1.QUANTILES}
+    return {n: lgb.Booster(model_file=str(MODELS / f"wind_weather_{n}.txt")) for n in QUANTILES}
 
 
 def predict_frac(X: pd.DataFrame) -> np.ndarray:
     """Power as a share of rated, columns p10, p50, p90."""
     b = _boosters()
-    q = np.column_stack([b[n].predict(X[FEATURES].to_numpy(float)) for n in m1.QUANTILES])
+    q = np.column_stack([b[n].predict(X[FEATURES].to_numpy(float)) for n in QUANTILES])
     q.sort(axis=1)
     return q
 
@@ -144,28 +144,27 @@ def evaluate(final: bool = False) -> dict:
     """Validation (Nov-Dec 2019) or, with final, the 2020 test year: run once, after everything is frozen."""
     t, X = hourly_table(2020 if final else 2019)
     period_name = "test_2020" if final else "val_2019_nov_dec"
-    va = np.ones(len(t), bool) if final else ((t.hour >= m1.TRAIN_END) & (t.hour < m1.VAL_END)).to_numpy()
+    va = np.ones(len(t), bool) if final else ((t.hour >= expected_power.TRAIN_END) & (t.hour < expected_power.VAL_END)).to_numpy()
     t, X = t[va].reset_index(drop=True), X[va].reset_index(drop=True)
     q = predict_frac(X) * t.rated_kw.to_numpy(float)[:, None]
-    curve = json.loads((MODELS / "m1w_wind_baseline.json").read_text())
+    curve = json.loads((MODELS / "wind_weather_baseline.json").read_text())
     d = pd.DataFrame({"turbine": t.turbine, "day": t.hour.dt.floor("D"), "wind_ms": X.v_hub, "power_kw": t.frac * t.rated_kw, "rated_kw": t.rated_kw,
                       "exp_p10_kw": q[:, 0], "exp_p50_kw": q[:, 1], "exp_p90_kw": q[:, 2], "base_kw": np.interp(X.v_hub, curve["centres"], curve["values"]) * t.rated_kw})
     covered = (d.power_kw >= d.exp_p10_kw) & (d.power_kw <= d.exp_p90_kw)
     bins = pd.cut(d.wind_ms, [0, 4, 6, 8, 10, 12, 15, 40], include_lowest=True)
-    by_wind = [{"wind_ms": str(k), "hours": len(g), "model_mae_pct": m1.score(g.power_kw, g.exp_p50_kw, g.rated_kw)["mae_pct_rated"],
-                "baseline_mae_pct": m1.score(g.power_kw, g.base_kw, g.rated_kw)["mae_pct_rated"], "coverage_10_90": round(float(covered[g.index].mean()), 3)} for k, g in d.groupby(bins, observed=True)]
+    by_wind = [{"wind_ms": str(k), "hours": len(g), "model_mae_pct": expected_power.score(g.power_kw, g.exp_p50_kw, g.rated_kw)["mae_pct_rated"],
+                "baseline_mae_pct": expected_power.score(g.power_kw, g.base_kw, g.rated_kw)["mae_pct_rated"], "coverage_10_90": round(float(covered[g.index].mean()), 3)} for k, g in d.groupby(bins, observed=True)]
     # What the optimizer adds up: energy over a working day. Hourly errors partly cancel.
     day = d.groupby(["turbine", "day"]).agg(real=("power_kw", "sum"), model=("exp_p50_kw", "sum"), base=("base_kw", "sum"), hours=("power_kw", "size"))
     day = day[day.hours >= 20]
     res = {"period": period_name, "hours": len(d), "note": "Hourly power from reanalysis weather (Open-Meteo archive). A forecast adds its own error on top.",
-           "model": m1.score(d.power_kw, d.exp_p50_kw, d.rated_kw), "baseline_binned_curve_on_hub_wind": m1.score(d.power_kw, d.base_kw, d.rated_kw),
+           "model": expected_power.score(d.power_kw, d.exp_p50_kw, d.rated_kw), "baseline_binned_curve_on_hub_wind": expected_power.score(d.power_kw, d.base_kw, d.rated_kw),
            "coverage_10_90": round(float(covered.mean()), 3), "by_wind": by_wind,
            "daily_energy_mae_mwh": {"model": round(float((day.model - day.real).abs().mean() / 1000), 2), "baseline": round(float((day.base - day.real).abs().mean() / 1000), 2),
                                     "mean_daily_energy_mwh": round(float(day.real.mean() / 1000), 2)}}
     res["model_beats_baseline"] = res["model"]["mae_kw"] < res["baseline_binned_curve_on_hub_wind"]["mae_kw"]
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / f"m1w_wind_{period_name}.json").write_text(json.dumps(res, indent=1))
-    m1.plot_expected(d, res, f"m1w_wind_{period_name}", model="M1-W", xlabel="Hub-height wind from weather data (m/s)")
+    write_result(f"wind_weather_{period_name}", res)
+    expected_power.plot_expected(d, res, f"wind_weather_{period_name}", model="M1-W", xlabel="Hub-height wind from weather data (m/s)")
     return res
 
 
@@ -203,10 +202,16 @@ def cost_map(site: str, w: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(parts, ignore_index=True)
 
 
-def daily_windows(cm: pd.DataFrame, site: str) -> pd.DataFrame:
-    """For each local day: the cheapest JOB_HOURS-long window inside the shift where every turbine can be worked on, and the cost of stopping all day (full days only)."""
+def _fleet_hours(cm: pd.DataFrame, site: str) -> pd.DataFrame:
+    """Per hour: mean cost per turbine, whether every turbine is workable, and the site's local time."""
     f = cm.groupby("hour_utc").agg(cost=("cost_mwh", "mean"), workable=("workable", "all")).reset_index()
     f["local"] = f.hour_utc.dt.tz_localize("UTC").dt.tz_convert(SITES[site]["tz"])
+    return f
+
+
+def daily_windows(cm: pd.DataFrame, site: str) -> pd.DataFrame:
+    """For each local day: the cheapest JOB_HOURS-long window inside the shift where every turbine can be worked on, and the cost of stopping all day (full days only)."""
+    f = _fleet_hours(cm, site)
     f["date"], f["h"] = f.local.dt.date, f.local.dt.hour
     rows = []
     for date, g in f.groupby("date"):
@@ -237,17 +242,15 @@ def run_site(site: str) -> dict:
            "per_turbine_daily": days.to_dict("records")}
     if len(ok):
         res["cheapest_vs_dearest_safe_window_mwh"] = [float(ok.cheapest_window_mwh.min()), float(ok.cheapest_window_mwh.max())]
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / f"m4_cost_{site}.json").write_text(json.dumps(res, indent=1, default=str))
+    write_result(f"downtime_cost_{site}", res)
     _plot_cost(cm, days, site, meta)
     return res
 
 
 def _plot_cost(cm: pd.DataFrame, days: pd.DataFrame, site: str, meta: dict) -> None:
-    plt = m1.chart_style()
-    C = m1.COLORS
-    f = cm.groupby("hour_utc").agg(cost=("cost_mwh", "mean"), workable=("workable", "all")).reset_index()
-    f["local"] = f.hour_utc.dt.tz_localize("UTC").dt.tz_convert(SITES[site]["tz"])
+    plt = chart_style()
+    C = COLORS
+    f = _fleet_hours(cm, site)
     f = f[f.local.dt.date.astype(str).isin(days.date)]
     f["day"], f["h"] = f.local.dt.strftime("%a %d %b"), f.local.dt.hour
     order = list(dict.fromkeys(f.day))
@@ -276,9 +279,7 @@ def _plot_cost(cm: pd.DataFrame, days: pd.DataFrame, site: str, meta: dict) -> N
     ax.set_title(f"Cheapest safe {JOB_HOURS}-hour stop each day, per turbine"); ax.set_xlabel("MWh lost")
     fig.text(0.01, 0.005, f"Forecast fetched {meta['fetched_utc']}{' (STALE)' if meta.get('stale') else ''}. Weather data by Open-Meteo.com. Safety limits are assumptions.", fontsize=8, color=C["muted"])
     fig.tight_layout(rect=(0, 0.03, 1, 1))
-    (RESULTS / "figures").mkdir(parents=True, exist_ok=True)
-    fig.savefig(RESULTS / "figures" / f"m4_cost_{site}.png", dpi=150, facecolor=C["surface"])
-    plt.close(fig)
+    save_figure(fig, f"downtime_cost_{site}")
 
 
 if __name__ == "__main__":
@@ -286,7 +287,7 @@ if __name__ == "__main__":
     ap.add_argument("--train", action="store_true")
     ap.add_argument("--eval", action="store_true")
     ap.add_argument("--final", action="store_true", help="With --eval: score the 2020 test year. Once only.")
-    ap.add_argument("--site", choices=sorted(k for k, v in SITES.items() if v.get("type", "wind") == "wind"), help="Wind sites; solar costs come from pv.py")
+    ap.add_argument("--site", choices=sorted(k for k, v in SITES.items() if v.get("type", "wind") == "wind"), help="Wind sites; solar costs come from src/producers/solar.py")
     a = ap.parse_args()
     if a.train:
         print(json.dumps(train(), indent=1))

@@ -4,10 +4,12 @@ The real data has almost no visible faults (0.18% of healthy rows sit far below 
 so M2 is trained and scored on controlled faults applied to real production. Each fault
 records the power it really removed, so detections and loss estimates are scored against
 the truth. Used by M2, the backtest and the solar branch. The same functions serve PV rows once the
-inverter is in `turbine`, AC power in `power_kw` and irradiance in `wind_ms` (see pv.py).
+inverter is in `turbine`, AC power in `power_kw` and irradiance in `wind_ms` (see src/producers/solar.py).
 """
 import numpy as np
 import pandas as pd
+
+from src.common import SEED, STEP_H
 
 CAUSES = ["yaw_misalignment", "pitch_fault", "anemometer_bias", "icing"]
 PV_CAUSES = ["soiling", "string_outage", "shading", "inverter_derate"]
@@ -25,7 +27,6 @@ STRING_N = (8, 16)           # PV: strings per inverter; one fails, so 1/N of ou
 SHADING_S, SHADING_WINDOW_H, SHADING_WEEKLY_GROWTH = (0.15, 0.5), 3, 0.25  # PV: loss s in a fixed 3-hour window, growing 25% a week.
 DERATE_K = (0.5, 0.85)       # PV: inverter capped at k x rated.
 MIN_EFFECT_HOURS = 12        # A fault that changes less than this has nothing to detect, so it is not scored.
-STEP_H = 1 / 6
 
 
 def severity(cause: str, rng: np.random.Generator) -> dict:
@@ -56,7 +57,7 @@ def icing_conditions(rows: pd.DataFrame) -> np.ndarray:
 def rain_days(dates) -> set:
     """Seeded rain days for PV soiling. The same date always gets the same answer."""
     return {d for d in pd.to_datetime(pd.Series(list(dates))).dt.date.unique()
-            if np.random.default_rng([42, 99, pd.Timestamp(d).toordinal()]).uniform() < RAIN_DAYS_PER_30 / 30}
+            if np.random.default_rng([SEED, 99, pd.Timestamp(d).toordinal()]).uniform() < RAIN_DAYS_PER_30 / 30}
 
 
 def effect(rows: pd.DataFrame, cause: str, sev: dict) -> tuple[np.ndarray, np.ndarray]:

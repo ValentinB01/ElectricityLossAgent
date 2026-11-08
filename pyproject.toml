@@ -1,0 +1,4 @@
+# Tool settings only: the code runs from the repository root as `python -m src....` (see the Makefile).
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
