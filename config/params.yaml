@@ -1,0 +1,30 @@
+# Operational parameters and numeric assumptions for ElectricityLossAgent
+# Documented assumptions as required by CLAUDE.md §2 and §9
+
+sites:
+  fantanele:
+    name: "Fântânele-Cogealac"
+    type: "wind"
+    latitude: 44.59028
+    longitude: 28.56528
+    capacity_mw: 600.0
+    turbines_count: 240
+    turbine_model: "GE 2.5xl"
+  calugareni:
+    name: "Lumina PV Călugăreni"
+    type: "pv"
+    latitude: 44.0951
+    longitude: 25.9761
+    capacity_mw: 63.0
+    modules_count: 120000
+
+economics:
+  energy_price_ron_per_mwh: 450.0 # Assumption: Romanian Day-Ahead Market average reference price in RON/MWh
+  fail_cost_mwh_eq: 50.0 # Assumption: equivalent cost in lost MWh of a catastrophic turbine failure
+
+operations:
+  wind_speed_work_limit_ms: 12.0 # Maximum wind speed for maintenance at height (m/s)
+  crews_per_day: 2 # Total maintenance crews available per day
+  hours_per_crew: 8.0 # Working hours per crew per day
+  conf_min: 0.7 # Minimum detection confidence before flagging low_confidence / scheduling inspection
+

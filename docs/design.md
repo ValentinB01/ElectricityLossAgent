@@ -2,7 +2,7 @@
 
 7 November 2026 · Valentin
 
-> This document explains **why** the system is designed this way. Exact build specs (features, parameters, formulas, schemas) are in [`CLAUDE.md`](../CLAUDE.md); the public overview, data licences and results are in the [README](../README.md).
+> This document explains **why** the system is designed this way. Exact build specs (features, parameters, formulas, schemas) are in [`CLAUDE.md`](../CLAUDE.md); the public overview, data licences and results are in the [README](../README.md). For module integration contracts, see [`agent-contract.md`](agent-contract.md).
 
 ## In short
 

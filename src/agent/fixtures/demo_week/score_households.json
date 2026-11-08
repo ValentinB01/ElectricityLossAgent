@@ -1,0 +1,43 @@
+{
+  "households": [
+    {
+      "household_id": "HH-THEFT-01",
+      "area": "Constanța Nord",
+      "theft_probability": 0.88,
+      "monthly_loss_kwh": 290.0,
+      "monthly_loss_ron": 130.5,
+      "signal_type": "theft",
+      "confidence": 0.91,
+      "recommended_action": "inspection"
+    },
+    {
+      "household_id": "HH-FAULTY-01",
+      "area": "Giurgiu Sud",
+      "theft_probability": 0.15,
+      "monthly_loss_kwh": 380.0,
+      "monthly_loss_ron": 171.0,
+      "signal_type": "faulty_meter",
+      "confidence": 0.89,
+      "recommended_action": "meter_replacement"
+    },
+    {
+      "household_id": "HH-005",
+      "area": "Constanța Sud",
+      "theft_probability": 0.45,
+      "monthly_loss_kwh": 110.0,
+      "monthly_loss_ron": 49.5,
+      "signal_type": "uncertain",
+      "confidence": 0.52,
+      "recommended_action": "remote_check"
+    }
+  ],
+  "provenance": {
+    "result_id": "res-score-hh-001",
+    "tool": "score_households",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  }
+}
+

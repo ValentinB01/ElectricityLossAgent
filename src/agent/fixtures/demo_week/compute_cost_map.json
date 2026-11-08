@@ -1,0 +1,56 @@
+{
+  "site_id": "fantanele",
+  "entries": [
+    {
+      "asset_id": "FAN-T17",
+      "timestamp": "2026-11-09T08:00:00Z",
+      "date": "2026-11-09",
+      "hour": 8,
+      "cost_mwh": 18.0,
+      "cost_ron": 8100.0,
+      "workable": false,
+      "wind_speed_ms": 14.5
+    },
+    {
+      "asset_id": "FAN-T17",
+      "timestamp": "2026-11-13T08:00:00Z",
+      "date": "2026-11-13",
+      "hour": 8,
+      "cost_mwh": 2.0,
+      "cost_ron": 900.0,
+      "workable": true,
+      "wind_speed_ms": 3.2
+    },
+    {
+      "asset_id": "FAN-T05",
+      "timestamp": "2026-11-10T08:00:00Z",
+      "date": "2026-11-10",
+      "hour": 8,
+      "cost_mwh": 4.5,
+      "cost_ron": 2025.0,
+      "workable": true,
+      "wind_speed_ms": 6.8
+    },
+    {
+      "asset_id": "CAL-INV02",
+      "timestamp": "2026-11-11T12:00:00Z",
+      "date": "2026-11-11",
+      "hour": 12,
+      "cost_mwh": 0.4,
+      "cost_ron": 180.0,
+      "workable": true,
+      "wind_speed_ms": 2.5
+    }
+  ],
+  "stale": false,
+  "age_hours": null,
+  "provenance": {
+    "result_id": "res-cost-001",
+    "tool": "compute_cost_map",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  }
+}
+

@@ -1,0 +1,19 @@
+{
+  "schedule_id": "sched-active-001",
+  "created_files": [
+    "results/work_orders/sched-active-001-T17-pitch-001.ics",
+    "results/work_orders/sched-active-001-T05-bearing-001.ics",
+    "results/work_orders/sched-active-001-T01-rev-001.ics",
+    "results/work_orders/sched-active-001.json"
+  ],
+  "work_orders_count": 3,
+  "provenance": {
+    "result_id": "res-wo-001",
+    "tool": "create_work_orders",
+    "backend": "fixture",
+    "as_of": "2026-11-08",
+    "forecast_run": "2026-11-08T00:00:00Z",
+    "created_at": "2026-11-08T00:05:00Z"
+  }
+}
+

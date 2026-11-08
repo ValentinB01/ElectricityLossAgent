@@ -4,19 +4,19 @@
 
 ## 1. Foundation and contracts
 
-- [ ] 1.1 Add `litellm`, `pydantic>=2`, `jinja2` to `requirements.txt` and create `config/agent.yaml` (provider, model, `as_of`, iteration/tool/timeout/token limits, grounding tolerance, small-count exemption, action TTL, per-tool backend map, bind host 127.0.0.1); verify `python -c "import litellm, pydantic, jinja2"` succeeds and the config loads into a typed settings object
-- [ ] 1.2 Write Pydantic I/O schemas in `src/agent/schemas/` for all 15 tools (incl. provenance block, `stale`, `low_confidence`, derived totals and deltas per design D5, structured error model with codes `unknown_asset`, `unknown_item`, `invalid_date`, `unknown_tool`, `backend_contract_violation`, `unsupported_scenario`); verify `tests/test_agent_contracts.py::test_schemas_export_json_schema` passes for every tool
-- [ ] 1.3 Document the contract for module owners in `docs/agent-contract.md` (the function each live adapter will call, expected DataFrame columns and the target schema) and link it from `docs/design.md`; verify every tool in the registry appears in the document
+- [x] 1.1 Add `litellm`, `pydantic>=2`, `jinja2` to `requirements.txt` and create `config/agent.yaml` (provider, model, `as_of`, iteration/tool/timeout/token limits, grounding tolerance, small-count exemption, action TTL, per-tool backend map, bind host 127.0.0.1); verify `python -c "import litellm, pydantic, jinja2"` succeeds and the config loads into a typed settings object
+- [x] 1.2 Write Pydantic I/O schemas in `src/agent/schemas/` for all 15 tools (incl. provenance block, `stale`, `low_confidence`, derived totals and deltas per design D5, structured error model with codes `unknown_asset`, `unknown_item`, `invalid_date`, `unknown_tool`, `backend_contract_violation`, `unsupported_scenario`); verify `tests/test_agent_contracts.py::test_schemas_export_json_schema` passes for every tool
+- [x] 1.3 Document the contract for module owners in `docs/agent-contract.md` (the function each live adapter will call, expected DataFrame columns and the target schema) and link it from `docs/design.md`; verify every tool in the registry appears in the document
 
 ## 2. Fixture pack (demo world)
 
-- [ ] 2.1 Author `src/agent/fixtures/demo_week/*.json`: Fântânele + Călugăreni assets under demo ids, T17 pitch fault reproducing the 7.6 vs 19.4 MWh example, one low-confidence asset, one stale-forecast variant, households including one faulty-meter case, loss overview with MWh+RON; verify `tests/test_agent_contracts.py::test_fixtures_validate` passes for every file
-- [ ] 2.2 Add precomputed `optimize_maintenance` variants (baseline, crew-2 off Thursday, T05 deferred 5 days) with consistent totals and deltas; verify a test asserts `delta = draft_total − active_total` for each variant and unknown constraints return `unsupported_scenario`
+- [x] 2.1 Author `src/agent/fixtures/demo_week/*.json`: Fântânele + Călugăreni assets under demo ids, T17 pitch fault reproducing the 7.6 vs 19.4 MWh example, one low-confidence asset, one stale-forecast variant, households including one faulty-meter case, loss overview with MWh+RON; verify `tests/test_agent_contracts.py::test_fixtures_validate` passes for every file
+- [x] 2.2 Add precomputed `optimize_maintenance` variants (baseline, crew-2 off Thursday, T05 deferred 5 days) with consistent totals and deltas; verify a test asserts `delta = draft_total − active_total` for each variant and unknown constraints return `unsupported_scenario`
 
 ## 3. Tool registry and dispatcher
 
-- [ ] 3.1 Implement `registry.py` (`@tool` decorator, effect class, input/output validation, provenance, `llm_view`, backend resolution from config) and `backends/fixture.py`; verify contract tests: bad asset id → `unknown_asset` with valid ids, past date → `invalid_date`, malformed backend output → `backend_contract_violation`
-- [ ] 3.2 Implement the 15 tool wrappers in `src/agent/tools/` with `llm_view` reducers (cost map → cheapest workable window per asset/day; top-N lists); verify a test checks every numeric leaf in each `llm_view` exists in the full result
+- [x] 3.1 Implement `registry.py` (`@tool` decorator, effect class, input/output validation, provenance, `llm_view`, backend resolution from config) and `backends/fixture.py`; verify contract tests: bad asset id → `unknown_asset` with valid ids, past date → `invalid_date`, malformed backend output → `backend_contract_violation`
+- [x] 3.2 Implement the 15 tool wrappers in `src/agent/tools/` with `llm_view` reducers (cost map → cheapest workable window per asset/day; top-N lists); verify a test checks every numeric leaf in each `llm_view` exists in the full result
 - [ ] 3.3 Implement `store.py` (SQLite, WAL, parameterised queries, tables from design D14, secret-redaction filter); verify tests that tool calls and results persist across a reopen and that a fake `api_key` in an error is redacted
 
 ## 4. Action gate, schedules and CLI

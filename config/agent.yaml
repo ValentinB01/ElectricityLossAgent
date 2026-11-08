@@ -1,0 +1,44 @@
+# LLM Agent configuration
+provider: "gemini"
+model: "gemini/gemini-2.5-flash"
+as_of: "2026-11-08"
+
+# Limits (design D15)
+limits:
+  max_iterations: 6
+  max_tool_calls: 12
+  timeout_seconds: 60
+  max_tokens: 4096
+
+# Grounding check parameters (design D6)
+grounding:
+  tolerance: 0.05
+  small_count_exemption: 10
+
+# Action gate settings (design D7)
+action:
+  ttl_seconds: 3600
+
+# Server settings (design D12, D15)
+server:
+  host: "127.0.0.1"
+  port: 8000
+
+# Per-tool backend map (fixture or live)
+backends:
+  get_weather_forecast: "fixture"
+  predict_expected_production: "fixture"
+  detect_underperformance: "fixture"
+  compute_cost_map: "fixture"
+  list_tasks: "fixture"
+  optimize_maintenance: "fixture"
+  predict_expected_consumption: "fixture"
+  score_households: "fixture"
+  build_inspection_list: "fixture"
+  loss_overview: "fixture"
+  explain: "fixture"
+  update_from_field_report: "fixture"
+  create_work_orders: "fixture"
+  send_alert: "fixture"
+  promote_schedule: "fixture"
+
